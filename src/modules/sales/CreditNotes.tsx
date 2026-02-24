@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +42,7 @@ const REASONS = [
 ];
 
 export default function CreditNotes() {
+  const navigate = useNavigate();
   const [notes, setNotes] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -203,10 +205,15 @@ export default function CreditNotes() {
           <h2 className="text-2xl font-bold">Credit Notes</h2>
           <p className="text-muted-foreground text-sm">Issue credit notes for returns, overcharges or adjustments</p>
         </div>
-        <Button onClick={openAdd} size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          New Credit Note
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={() => navigate('/sales/credit-notes/create')} size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            New Credit Note
+          </Button>
+          <Button variant="outline" onClick={openAdd} size="lg">
+            Quick Entry
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-xl">

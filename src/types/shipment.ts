@@ -43,7 +43,20 @@ export interface SalesSettings {
     soPrefix: string;
     plPrefix: string;
     invoicePrefix: string;
+    dcPrefix?: string;
+    cnPrefix?: string;
+    retainerPrefix?: string;
+    paymentPrefix?: string;
   };
+  salespersons?: SalespersonEntry[];
+}
+
+export interface SalespersonEntry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  commissionPercent: number;
 }
 
 export interface BankAccount {

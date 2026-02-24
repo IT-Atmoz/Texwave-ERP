@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Plus, Trash2 } from 'lucide-react';
+import { Search, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { createRecord, deleteRecord, getAllRecords } from '@/services/firebase';
 
 const paymentModes = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'NEFT', 'RTGS', 'IMPS'];
 
 export default function PaymentsReceived() {
+  const navigate = useNavigate();
   const [payments, setPayments] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -108,10 +110,15 @@ export default function PaymentsReceived() {
           <h2 className="text-2xl font-bold">Payments Received</h2>
           <p className="text-muted-foreground text-sm">Total: ₹{totalReceived.toLocaleString('en-IN')}</p>
         </div>
-        <Button onClick={() => setOpen(true)} size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Record Payment
-        </Button>
+        <div className="flex gap-3">
+          <Button onClick={() => navigate('/sales/payments-received/create')} size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            Record Payment
+          </Button>
+          <Button variant="outline" onClick={() => setOpen(true)} size="lg">
+            Quick Entry
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-xl">
@@ -160,9 +167,14 @@ export default function PaymentsReceived() {
                       <TableCell>{p.mode}</TableCell>
                       <TableCell className="text-muted-foreground">{p.reference || '—'}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id, p.paymentNumber)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/sales/payments-received/edit/${p.id}`)} title="Edit">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id, p.paymentNumber)} title="Delete">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

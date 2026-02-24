@@ -48,8 +48,18 @@ export default function MyProfile() {
   useEffect(() => {
     if (!user?.employeeId) return;
     const load = async () => {
-      const snap = await get(ref(database, `hr/employees/${user.employeeId}`));
-      setEmp(snap.exists() ? snap.val() : null);
+      // Employees are stored under Firebase push keys, not the display employeeId.
+      // Search all employees to find the one matching this user's employeeId.
+      const snap = await get(ref(database, 'hr/employees'));
+      if (snap.exists()) {
+        const data = snap.val();
+        const found = Object.values(data).find(
+          (e: any) => e.employeeId === user.employeeId
+        ) as EmployeeData | undefined;
+        setEmp(found ?? null);
+      } else {
+        setEmp(null);
+      }
       setLoading(false);
     };
     load();

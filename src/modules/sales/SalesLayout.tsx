@@ -14,6 +14,11 @@ import {
   Receipt,
   Wallet,
   FileMinus,
+  Truck,
+  Landmark,
+  RotateCcw,
+  BarChart3,
+  Settings,
 } from 'lucide-react';
 
 const salesTabs = [
@@ -44,9 +49,19 @@ const salesTabs = [
     path: '/sales/orders',
   },
   {
+    id: 'delivery-challans',
+    label: <span className="flex items-center gap-1"><Truck size={16} />Delivery Challans</span>,
+    path: '/sales/delivery-challans',
+  },
+  {
     id: 'invoices',
     label: <span className="flex items-center gap-1"><Receipt size={16} />Invoices</span>,
     path: '/sales/invoices',
+  },
+  {
+    id: 'payments-received',
+    label: <span className="flex items-center gap-1"><Wallet size={16} />Payments Received</span>,
+    path: '/sales/payments-received',
   },
   {
     id: 'credit-notes',
@@ -54,9 +69,24 @@ const salesTabs = [
     path: '/sales/credit-notes',
   },
   {
-    id: 'payments-received',
-    label: <span className="flex items-center gap-1"><Wallet size={16} />Payments Received</span>,
-    path: '/sales/payments-received',
+    id: 'retainer-invoices',
+    label: <span className="flex items-center gap-1"><Landmark size={16} />Retainer Invoices</span>,
+    path: '/sales/retainer-invoices',
+  },
+  {
+    id: 'recurring-invoices',
+    label: <span className="flex items-center gap-1"><RotateCcw size={16} />Recurring Invoices</span>,
+    path: '/sales/recurring-invoices',
+  },
+  {
+    id: 'reports',
+    label: <span className="flex items-center gap-1"><BarChart3 size={16} />Reports</span>,
+    path: '/sales/reports',
+  },
+  {
+    id: 'settings',
+    label: <span className="flex items-center gap-1"><Settings size={16} />Settings</span>,
+    path: '/sales/settings',
   },
 ];
 

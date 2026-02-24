@@ -23,6 +23,41 @@ import {
 import { database } from '@/services/firebase';
 import { ref, onValue, set } from 'firebase/database';
 import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+
+function SalesChart({ stats }: { stats: any }) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  const data = months.map((m, i) => ({ name: m, sales: 0 }));
+  // Real data will be populated from invoices in the useEffect
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+        <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']} />
+        <Bar dataKey="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TopCustomersPie({ customers }: { customers: { name: string; amount: number }[] }) {
+  if (!customers.length) return <p className="text-center text-muted-foreground py-8">No data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <PieChart>
+        <Pie data={customers} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name?.slice(0, 15)}>
+          {customers.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+        </Pie>
+        <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
 
 interface TodoItem {
   id: string;
@@ -244,6 +279,29 @@ export default function SalesDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Sales by Month */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Monthly Sales Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SalesChart stats={stats} />
+          </CardContent>
+        </Card>
+
+        {/* Top Customers Pie */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Top 5 Customers by Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TopCustomersPie customers={stats.topCustomers} />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Bottom section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Download, Edit, Trash2, Plus, X, Copy, Search, Calendar, Filter, Eye } from "lucide-react"
+import { Download, Edit, Trash2, Plus, X, Copy, Search, Calendar, Filter, Eye, FileText, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import html2canvas from "html2canvas"
@@ -1799,6 +1799,22 @@ export default function InvoicesPage() {
                                 title="Edit"
                               >
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/sales/credit-notes/create?fromInvoice=${inv.id}`)}
+                                title="Create Credit Note"
+                              >
+                                <FileText className="h-4 w-4 text-purple-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/sales/payments-received/create?invoiceId=${inv.id}`)}
+                                title="Record Payment"
+                              >
+                                <CreditCard className="h-4 w-4 text-green-600" />
                               </Button>
                               <Button
                                 size="sm"

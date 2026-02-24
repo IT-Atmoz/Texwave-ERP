@@ -112,7 +112,14 @@ export interface Quotation {
   remarks?: string;
   comments?: string;
   attachments: string[];
-  status: 'Draft' | 'Approved' | 'Sent' | 'Accepted' | 'Rejected';
+  status: 'Draft' | 'Approved' | 'Sent' | 'Accepted' | 'Rejected' | 'Converted';
+  convertedToSOId?: string;
+  convertedToInvoiceId?: string;
+  salespersonId?: string;
+  salespersonName?: string;
+  approvalStatus?: 'Pending' | 'Approved' | 'Rejected';
+  approvalHistory?: ApprovalEntry[];
+  customFields?: Record<string, any>;
   createdAt: number;
 }
 
@@ -146,6 +153,20 @@ export interface OrderAcknowledgement {
   qcStatus?: 'pending' | 'in-progress' | 'completed' | 'hold';
   productionStatus?: 'pending' | 'in-progress' | 'completed';
   invoiceStatus?: 'not_generated' | 'generated' | 'paid';
+  convertedFromQuotationId?: string;
+  convertedFromQuotationNumber?: string;
+  convertedToInvoiceIds?: string[];
+  convertedToDCIds?: string[];
+  shipmentDate?: string;
+  salespersonId?: string;
+  salespersonName?: string;
+  shippingCharge?: number;
+  adjustment?: number;
+  invoicedStatus?: 'Not Invoiced' | 'Partially Invoiced' | 'Invoiced';
+  shippedStatus?: 'Not Shipped' | 'Partially Shipped' | 'Shipped';
+  approvalStatus?: 'Pending' | 'Approved' | 'Rejected';
+  approvalHistory?: ApprovalEntry[];
+  customFields?: Record<string, any>;
   createdAt: number;
 }
 
@@ -193,9 +214,23 @@ export interface Invoice {
   totalInWords: string;
   totalTaxInWords: string;
   remarks?: string;
-  paymentStatus: 'Draft' | 'Final' | 'Unpaid' | 'Partial' | 'Paid';
+  paymentStatus: 'Draft' | 'Final' | 'Unpaid' | 'Partial' | 'Paid' | 'Sent' | 'Viewed' | 'Overdue' | 'Partially Paid' | 'Void';
   paidAmount: number;
   dueDate: string;
+  convertedFromSOId?: string;
+  convertedFromSONumber?: string;
+  convertedFromDCId?: string;
+  convertedFromQuotationId?: string;
+  salespersonId?: string;
+  salespersonName?: string;
+  creditNotesApplied?: CreditNoteApplication[];
+  retainerApplied?: RetainerApplication[];
+  paymentHistory?: PaymentApplication[];
+  voidedAt?: number;
+  voidReason?: string;
+  approvalStatus?: 'Pending' | 'Approved' | 'Rejected';
+  approvalHistory?: ApprovalEntry[];
+  customFields?: Record<string, any>;
   createdAt: number;
 }
 
@@ -712,6 +747,237 @@ export interface PaymentReceived {
   mode: string;
   reference?: string;
   notes?: string;
+  invoiceAllocations?: InvoiceAllocation[];
+  excessAmount?: number;
+  bankCharges?: number;
+  refundedAmount?: number;
+  refundHistory?: RefundEntry[];
+  createdAt: number;
+}
+
+// ============================================================
+// Sales Module - Zoho Books Enhanced Types
+// ============================================================
+
+export interface DeliveryChallan {
+  id: string;
+  dcNumber: string;
+  dcDate: string;
+  customerId: string;
+  customerName: string;
+  customerGST?: string;
+  billingAddress?: any;
+  shippingAddress?: any;
+  challanType: 'Supply' | 'Job Work' | 'Delivery' | 'Others';
+  vehicleNo?: string;
+  transporterName?: string;
+  placeOfSupply?: string;
+  salesOrderId?: string;
+  salesOrderNumber?: string;
+  lineItems: DCLineItem[];
+  totalQty: number;
+  subtotal: number;
+  taxAmount: number;
+  grandTotal: number;
+  status: 'Draft' | 'Open' | 'Delivered' | 'Invoiced' | 'Returned';
+  convertedToInvoiceId?: string;
+  terms?: string;
+  remarks?: string;
+  salespersonId?: string;
+  salespersonName?: string;
+  customFields?: Record<string, any>;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface DCLineItem {
+  sNo: number;
+  productCode: string;
+  description: string;
+  hsnCode: string;
+  qty: number;
+  uom: string;
+  rate?: number;
+  amount?: number;
+}
+
+export interface RetainerInvoice {
+  id: string;
+  retainerNumber: string;
+  customerId: string;
+  customerName: string;
+  date: string;
+  dueDate: string;
+  amount: number;
+  description: string;
+  notes?: string;
+  terms?: string;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Partially Paid' | 'Drawn' | 'Partially Drawn';
+  paidAmount: number;
+  drawnAmount: number;
+  unusedBalance: number;
+  appliedToInvoices?: RetainerApplication[];
+  paymentHistory?: PaymentApplication[];
+  refundHistory?: RefundEntry[];
+  salespersonId?: string;
+  salespersonName?: string;
+  customFields?: Record<string, any>;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface RecurringInvoiceProfile {
+  id: string;
+  profileName: string;
+  customerId: string;
+  customerName: string;
+  frequency: 'weekly' | 'monthly' | 'quarterly' | 'half-yearly' | 'yearly' | 'custom';
+  customIntervalDays?: number;
+  startDate: string;
+  endDate?: string;
+  nextInvoiceDate: string;
+  lineItems: InvoiceLineItem[];
+  subtotal: number;
+  taxAmount: number;
+  grandTotal: number;
+  paymentTerms?: string;
+  notes?: string;
+  terms?: string;
+  status: 'Active' | 'Paused' | 'Stopped' | 'Expired';
+  generatedInvoiceIds?: string[];
+  salespersonId?: string;
+  salespersonName?: string;
+  customFields?: Record<string, any>;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface CreditNote {
+  id: string;
+  cnNumber: string;
+  customerId: string;
+  customerName: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  date: string;
+  reason: string;
+  notes?: string;
+  status: 'Open' | 'Applied' | 'Partially Applied' | 'Void';
+  items: CreditNoteItem[];
+  subTotal: number;
+  taxAmount: number;
+  total: number;
+  balanceAmount: number;
+  appliedToInvoices?: CreditNoteApplication[];
+  refunds?: RefundEntry[];
+  salespersonId?: string;
+  salespersonName?: string;
+  customFields?: Record<string, any>;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface CreditNoteItem {
+  sNo: number;
+  description: string;
+  qty: number;
+  rate: number;
+  taxPercent: number;
+  amount: number;
+}
+
+export interface ApprovalEntry {
+  id: string;
+  action: 'Submitted' | 'Approved' | 'Rejected';
+  by: string;
+  at: number;
+  comment?: string;
+}
+
+export interface CreditNoteApplication {
+  creditNoteId: string;
+  creditNoteNumber: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  appliedAt: number;
+}
+
+export interface RetainerApplication {
+  retainerId: string;
+  retainerNumber: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  appliedAt: number;
+}
+
+export interface PaymentApplication {
+  paymentId: string;
+  paymentNumber: string;
+  amount: number;
+  date: string;
+  mode: string;
+}
+
+export interface InvoiceAllocation {
+  invoiceId: string;
+  invoiceNumber: string;
+  allocatedAmount: number;
+  invoiceTotal: number;
+  invoiceBalance: number;
+}
+
+export interface RefundEntry {
+  id: string;
+  amount: number;
+  date: string;
+  mode: string;
+  reference?: string;
+  notes?: string;
+  createdAt: number;
+}
+
+export interface Salesperson {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  commissionPercent?: number;
+  status: 'Active' | 'Inactive';
+  createdAt: number;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  documentType: string;
+  subject: string;
+  body: string;
+  createdAt: number;
+}
+
+export interface ApprovalWorkflow {
+  id: string;
+  documentType: string;
+  enabled: boolean;
+  levels: ApprovalLevel[];
+  autoApproveThreshold?: number;
+}
+
+export interface ApprovalLevel {
+  level: number;
+  approverRole: string;
+  approverName?: string;
+}
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  fieldType: 'text' | 'number' | 'date' | 'dropdown' | 'checkbox';
+  options?: string[];
+  appliesTo: string[];
+  required: boolean;
   createdAt: number;
 }
 

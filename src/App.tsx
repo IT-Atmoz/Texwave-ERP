@@ -71,6 +71,15 @@ import Invoices from "./modules/sales/Invoices";
 import CreateInvoice from "./modules/sales/CreateInvoice";
 import Reports from "./modules/sales/Reports";
 import SalesSettings from "./modules/sales/SalesSettings";
+import CreateSalesOrder from "./modules/sales/CreateSalesOrder";
+import DeliveryChallans from "./modules/sales/DeliveryChallans";
+import CreateDeliveryChallan from "./modules/sales/CreateDeliveryChallan";
+import CreatePaymentReceived from "./modules/sales/CreatePaymentReceived";
+import CreateCreditNote from "./modules/sales/CreateCreditNote";
+import RetainerInvoices from "./modules/sales/RetainerInvoices";
+import CreateRetainerInvoice from "./modules/sales/CreateRetainerInvoice";
+import RecurringInvoices from "./modules/sales/RecurringInvoices";
+import CreateRecurringProfile from "./modules/sales/CreateRecurringProfile";
 
 // HR Module
 import HRLayout from "./modules/hr/HRLayout";
@@ -85,7 +94,6 @@ import Loans from "./modules/hr/Loans";
 import EmployeeDocumentsView from "./modules/hr/EmployeeDocumentsView";
 import Holiday from "./modules/hr/Holiday";
 import Holial from "./modules/hr/Holial";
-import Stot from "./modules/hr/Stot";
 import FullMonthPresent from "./modules/hr/FMP";
 import BonusSheet from "./modules/hr/BonusSheet";
 import FMA from "./modules/hr/FMA";
@@ -110,6 +118,8 @@ import WebCheckin from "./modules/employee/WebCheckin";
 import MyTimesheet from "./modules/employee/MyTimesheet";
 import MyProfile from "./modules/employee/MyProfile";
 import MyDocuments from "./modules/employee/MyDocuments";
+import MyAttendance from "./modules/employee/MyAttendance";
+import MyLeaves from "./modules/employee/MyLeaves";
 
 // Other
 import FMP from "./modules/hr/FMP";
@@ -122,7 +132,6 @@ import HRDashboard from "./modules/hr/HRDashboard";
 import Approved from "./modules/hr/Approved";
 import Pf from "./modules/hr/Pf";
 import Esi from "./modules/hr/Esi";
-import Otrate from "./modules/hr/Otrate";
 
 // Query Client
 const queryClient = new QueryClient();
@@ -523,14 +532,43 @@ function App() {
                   <Route path="create" element={<CreateQuotation />} />
                   <Route path="edit/:id" element={<CreateQuotation />} />
                 </Route>
-                <Route path="orders" element={<Orders />} />
+                <Route path="orders">
+                  <Route index element={<Orders />} />
+                  <Route path="create" element={<CreateSalesOrder />} />
+                  <Route path="create/:quotationId" element={<CreateSalesOrder />} />
+                  <Route path="edit/:id" element={<CreateSalesOrder />} />
+                </Route>
+                <Route path="delivery-challans">
+                  <Route index element={<DeliveryChallans />} />
+                  <Route path="create" element={<CreateDeliveryChallan />} />
+                  <Route path="create/:orderId" element={<CreateDeliveryChallan />} />
+                  <Route path="edit/:id" element={<CreateDeliveryChallan />} />
+                </Route>
                 <Route path="invoices">
                   <Route index element={<Invoices />} />
                   <Route path="create" element={<CreateInvoice />} />
                   <Route path="edit/:id" element={<CreateInvoice />} />
                 </Route>
-                <Route path="credit-notes" element={<CreditNotes />} />
-                <Route path="payments-received" element={<PaymentsReceived />} />
+                <Route path="payments-received">
+                  <Route index element={<PaymentsReceived />} />
+                  <Route path="create" element={<CreatePaymentReceived />} />
+                  <Route path="edit/:id" element={<CreatePaymentReceived />} />
+                </Route>
+                <Route path="credit-notes">
+                  <Route index element={<CreditNotes />} />
+                  <Route path="create" element={<CreateCreditNote />} />
+                  <Route path="edit/:id" element={<CreateCreditNote />} />
+                </Route>
+                <Route path="retainer-invoices">
+                  <Route index element={<RetainerInvoices />} />
+                  <Route path="create" element={<CreateRetainerInvoice />} />
+                  <Route path="edit/:id" element={<CreateRetainerInvoice />} />
+                </Route>
+                <Route path="recurring-invoices">
+                  <Route index element={<RecurringInvoices />} />
+                  <Route path="create" element={<CreateRecurringProfile />} />
+                  <Route path="edit/:id" element={<CreateRecurringProfile />} />
+                </Route>
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<SalesSettings />} />
               </Route>
@@ -558,8 +596,6 @@ function App() {
                 <Route path="holial" element={<Holial />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="employees/profile/:id" element={<EmployeeProfileView />} />
-                <Route path="stot" element={<Stot />} />
-                           <Route path="ot-rate" element={<Otrate />} />
                 <Route path="approval-attendance" element={<Approved />} />
                 <Route path="full-month-present" element={<FullMonthPresent />} />
                 <Route path="full-month-absent" element={<FMA />} />
@@ -618,6 +654,8 @@ function App() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<EmployeeDashboard />} />
                 <Route path="checkin" element={<WebCheckin />} />
+                <Route path="attendance" element={<MyAttendance />} />
+                <Route path="leaves" element={<MyLeaves />} />
                 <Route path="timesheet" element={<MyTimesheet />} />
                 <Route path="profile" element={<MyProfile />} />
                 <Route path="documents" element={<MyDocuments />} />

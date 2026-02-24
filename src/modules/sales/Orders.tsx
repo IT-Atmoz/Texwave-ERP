@@ -62,6 +62,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { getAllRecords, createRecord, updateRecord, deleteRecord } from '@/services/firebase';
+import { useNavigate } from 'react-router-dom';
 
 // ────────────────────────────────────────────────
 // TYPES
@@ -1025,6 +1026,7 @@ const ProformaInvoicePrintTemplate = ({ order }: { order: SalesOrder }) => {
 // ────────────────────────────────────────────────
 
 export default function SalesOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<SalesOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1743,11 +1745,16 @@ export default function SalesOrders() {
           <h1 className="text-3xl font-bold">Sales Orders</h1>
           <p className="text-muted-foreground">Real-time production & quality tracking</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate('/sales/orders/create')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Full-Page Form
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Create Sales Order
+              Quick Create
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -2180,6 +2187,7 @@ export default function SalesOrders() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="mb-6">

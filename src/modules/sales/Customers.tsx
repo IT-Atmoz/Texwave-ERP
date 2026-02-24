@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Edit, Trash2, MapPin } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, MapPin, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { deleteRecord, getAllRecords } from '@/services/firebase';
 import { Link, useNavigate } from 'react-router-dom';
+import CustomerStatement from './components/CustomerStatement';
 
 interface Address {
   id: string;
@@ -44,6 +45,7 @@ interface Customer {
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statementCustomer, setStatementCustomer] = useState<{ id: string; name: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -210,6 +212,14 @@ export default function Customers() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => setStatementCustomer({ id: customer.id, name: customer.companyName })}
+                              title="View Statement"
+                            >
+                              <FileText className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => navigate(`/sales/customers/edit/${customer.id}`)}
                             >
                               <Edit className="h-4 w-4" />
@@ -232,6 +242,15 @@ export default function Customers() {
           </div>
         </CardContent>
       </Card>
+
+      {statementCustomer && (
+        <CustomerStatement
+          open={!!statementCustomer}
+          onOpenChange={(open) => { if (!open) setStatementCustomer(null); }}
+          customerId={statementCustomer.id}
+          customerName={statementCustomer.name}
+        />
+      )}
     </div>
   );
 }

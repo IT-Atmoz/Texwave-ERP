@@ -11,24 +11,34 @@ import { toast } from 'sonner';
 import {
   MapPin, User, FolderOpen, CheckCircle, XCircle,
   CalendarDays, ArrowRight, FileText, Sunrise, Navigation,
-  LogIn, LogOut, Clock,
+  LogIn, LogOut, Clock, Plus, Calendar,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface AttendanceRecord {
+export interface AttendanceSession {
+  checkIn: string;
+  checkInMs: number;
+  checkOut?: string;
+  checkOutMs?: number;
+  lat?: number | null;
+  lng?: number | null;
+  checkOutLat?: number | null;
+  checkOutLng?: number | null;
+}
+
+export interface AttendanceRecord {
   employeeId: string;
   employeeName: string;
   date: string;
   status: string;
+  sessions: AttendanceSession[];
+  totalWorkedMs: number;
+  // Backward-compat top-level fields
   checkIn?: string;
   checkOut?: string;
-  lat?: number;
-  lng?: number;
-  checkOutLat?: number;
-  checkOutLng?: number;
-  createdAt?: number;   // ms timestamp of check-in → used for stopwatch
+  createdAt?: number;
+  checkOutAt?: number;
   updatedAt?: number;
-  checkOutAt?: number;  // ms timestamp of check-out → used for final duration
 }
 
 interface TimeLog {
@@ -43,16 +53,25 @@ interface TimeLog {
 type GpsStatus = 'idle' | 'getting' | 'got' | 'denied';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function format12h(d: Date) {
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+export function format12h(d: Date) {
+  return d.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+  });
 }
 
-function msToHMS(ms: number) {
+export function msToHMS(ms: number) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+export function msToHM(ms: number) {
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -63,15 +82,13 @@ export default function EmployeeDashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // Attendance state
-  const [record, setRecord]       = useState<AttendanceRecord | null>(null);
+  const [record, setRecord] = useState<AttendanceRecord | null>(null);
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
-  const [lat, setLat]             = useState<number | null>(null);
-  const [lng, setLng]             = useState<number | null>(null);
-  const [accuracy, setAccuracy]   = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Stopwatch
-  const [elapsed, setElapsed] = useState('00:00:00');
+  // Stopwatch — total time worked today (completed + current)
+  const [totalElapsed, setTotalElapsed] = useState('00:00:00');
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Monthly summary
@@ -84,33 +101,56 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     if (!user?.employeeId) return;
     const unsub = onValue(ref(database, `hr/attendance/${today}/${user.employeeId}`), snap => {
-      setRecord(snap.exists() ? snap.val() : null);
+      if (snap.exists()) {
+        const val = snap.val();
+        // Migrate old single-session format → sessions array
+        if (!val.sessions) {
+          const migrated: AttendanceRecord = {
+            ...val,
+            sessions: val.checkIn ? [{
+              checkIn: val.checkIn,
+              checkInMs: val.createdAt ?? Date.now(),
+              checkOut: val.checkOut,
+              checkOutMs: val.checkOutAt,
+              lat: val.lat,
+              lng: val.lng,
+              checkOutLat: val.checkOutLat,
+              checkOutLng: val.checkOutLng,
+            }] : [],
+            totalWorkedMs: (val.checkIn && val.checkOut && val.createdAt && val.checkOutAt)
+              ? val.checkOutAt - val.createdAt : 0,
+          };
+          setRecord(migrated);
+        } else {
+          setRecord(val);
+        }
+      } else {
+        setRecord(null);
+      }
     });
     return () => unsub();
   }, [user?.employeeId, today]);
 
-  // ── Stopwatch: runs while checked-in but not checked-out ──────────────────
+  // ── Stopwatch: total time including current active session ─────────────────
   useEffect(() => {
     if (tickRef.current) clearInterval(tickRef.current);
 
-    const checkedIn   = record?.checkIn && !record?.checkOut;
-    const alreadyDone = record?.checkIn && record?.checkOut;
+    const sessions = record?.sessions ?? [];
+    const lastSession = sessions[sessions.length - 1];
+    const activeSession = lastSession && !lastSession.checkOut ? lastSession : null;
+    const completedMs = record?.totalWorkedMs ?? 0;
 
-    if (checkedIn && record?.createdAt) {
-      // Use stored ms timestamp for accuracy
-      const startMs = record.createdAt;
-      const tick = () => setElapsed(msToHMS(Date.now() - startMs));
+    if (activeSession) {
+      const startMs = activeSession.checkInMs;
+      const tick = () => setTotalElapsed(msToHMS(completedMs + (Date.now() - startMs)));
       tick();
       tickRef.current = setInterval(tick, 1000);
-    } else if (alreadyDone && record?.createdAt && record?.checkOutAt) {
-      // Show final frozen duration
-      setElapsed(msToHMS(record.checkOutAt - record.createdAt));
     } else {
-      setElapsed('00:00:00');
+      setTotalElapsed(msToHMS(completedMs));
     }
 
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [record?.checkIn, record?.checkOut, record?.createdAt, record?.checkOutAt]);
+  }, [record]);
 
   // ── Monthly summary ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -124,7 +164,7 @@ export default function EmployeeDashboard() {
       const snaps = await Promise.all(
         Array.from({ length: days }, (_, i) => {
           const d = String(i + 1).padStart(2, '0');
-          return get(ref(database, `hr/attendance/${year}-${String(month).padStart(2,'0')}-${d}/${user.employeeId}`));
+          return get(ref(database, `hr/attendance/${year}-${String(month).padStart(2, '0')}-${d}/${user.employeeId}`));
         })
       );
       snaps.forEach(s => {
@@ -160,8 +200,6 @@ export default function EmployeeDashboard() {
       setGpsStatus('getting');
       navigator.geolocation.getCurrentPosition(
         pos => {
-          setLat(pos.coords.latitude);
-          setLng(pos.coords.longitude);
           setAccuracy(pos.coords.accuracy);
           setGpsStatus('got');
           resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
@@ -177,45 +215,80 @@ export default function EmployeeDashboard() {
     setActionLoading(true);
     const loc = await getLocation();
     if (!loc) toast.warning('No GPS — checking in without location');
+
     const now = new Date();
     const nowMs = Date.now();
-    await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-      employeeId: user.employeeId,
-      employeeName: user.name,
-      date: today,
-      status: 'Present',
+    const newSession: AttendanceSession = {
       checkIn: format12h(now),
+      checkInMs: nowMs,
       lat: loc?.lat ?? null,
       lng: loc?.lng ?? null,
-      createdAt: nowMs,
-    });
+    };
+
+    const existingSessions = record?.sessions ?? [];
+
+    if (!record) {
+      await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+        employeeId: user.employeeId,
+        employeeName: user.name,
+        date: today,
+        status: 'Present',
+        sessions: [newSession],
+        totalWorkedMs: 0,
+        checkIn: format12h(now),
+        createdAt: nowMs,
+      });
+    } else {
+      await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+        sessions: [...existingSessions, newSession],
+        status: 'Present',
+      });
+    }
+
     toast.success(`Checked in at ${format12h(now)}`);
     setActionLoading(false);
   };
 
   // ── Check Out ──────────────────────────────────────────────────────────────
   const doCheckOut = async () => {
-    if (!user?.employeeId) return;
+    if (!user?.employeeId || !record) return;
     setActionLoading(true);
     const loc = await getLocation();
     if (!loc) toast.warning('No GPS — checking out without location');
+
     const now = new Date();
     const nowMs = Date.now();
-    await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+    const sessions = [...(record.sessions ?? [])];
+    const lastIdx = sessions.length - 1;
+    const activeSession = sessions[lastIdx];
+    const sessionMs = nowMs - (activeSession.checkInMs ?? nowMs);
+    const prevTotal = record.totalWorkedMs ?? 0;
+
+    sessions[lastIdx] = {
+      ...activeSession,
       checkOut: format12h(now),
+      checkOutMs: nowMs,
       checkOutLat: loc?.lat ?? null,
       checkOutLng: loc?.lng ?? null,
+    };
+
+    await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+      sessions,
+      totalWorkedMs: prevTotal + sessionMs,
+      checkOut: format12h(now),
       checkOutAt: nowMs,
       updatedAt: nowMs,
     });
+
     toast.success(`Checked out at ${format12h(now)}`);
     setActionLoading(false);
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  const checkedIn   = !!(record?.checkIn && !record?.checkOut);
-  const alreadyDone = !!(record?.checkIn && record?.checkOut);
-  const notStarted  = !record?.checkIn;
+  const sessions = record?.sessions ?? [];
+  const lastSession = sessions[sessions.length - 1];
+  const isCheckedIn = sessions.length > 0 && !!lastSession && !lastSession.checkOut;
+  const hasAnySession = sessions.length > 0;
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -226,8 +299,8 @@ export default function EmployeeDashboard() {
 
   const logStatusBadge = (s: TimeLog['status']) =>
     s === 'approved' ? 'bg-green-100 text-green-700'
-    : s === 'rejected' ? 'bg-red-100 text-red-700'
-    : 'bg-amber-100 text-amber-700';
+      : s === 'rejected' ? 'bg-red-100 text-red-700'
+        : 'bg-amber-100 text-amber-700';
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -246,7 +319,8 @@ export default function EmployeeDashboard() {
               <span className="text-xs">{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
             </div>
             <h1 className="text-xl font-bold">{greeting()}, {user?.name?.split(' ')[0]}!</h1>
-            <p className="text-xs opacity-60 mt-0.5">{user?.employeeId} · Employee Portal</p>
+            <p className="text-xs opacity-60 mt-0.5">Have a productive day!</p>
+            <p className="text-xs opacity-40 mt-0.5">{user?.employeeId} · Employee Portal</p>
           </div>
           <Badge className="bg-white/20 text-white border-white/30 text-xs hidden sm:flex">
             {record?.status ?? 'Not marked'}
@@ -254,102 +328,75 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* ── ATTENDANCE CLOCK CARD (main focus) ── */}
-      <Card className={`border-2 shadow-md transition-all ${
-        alreadyDone ? 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-50'
-        : checkedIn  ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50'
-        :               'border-border bg-white'
-      }`}>
+      {/* ── ATTENDANCE CLOCK CARD ── */}
+      <Card className={`border-2 shadow-md transition-all ${isCheckedIn
+        ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50'
+        : hasAnySession
+          ? 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-50'
+          : 'border-border bg-white'
+        }`}>
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row items-center gap-0 sm:gap-6 p-6">
 
-            {/* Left: stopwatch display */}
+            {/* Left: total time display */}
             <div className="flex flex-col items-center sm:items-start text-center sm:text-left mb-5 sm:mb-0">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                {alreadyDone ? 'Total Time Worked' : checkedIn ? 'Time Elapsed' : "Today's Session"}
+                {isCheckedIn ? 'Currently Working' : hasAnySession ? 'Total Time Today' : "Today's Attendance"}
               </p>
 
               {/* Big clock */}
-              <div className={`relative flex items-center gap-2 ${
-                alreadyDone ? 'text-green-600' : checkedIn ? 'text-amber-600' : 'text-muted-foreground/50'
-              }`}>
-                {checkedIn && (
+              <div className={`relative flex items-center gap-2 ${isCheckedIn ? 'text-amber-600' : hasAnySession ? 'text-green-600' : 'text-muted-foreground/50'}`}>
+                {isCheckedIn && (
                   <span className="absolute -left-4 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
                 )}
-                <span className={`font-mono font-bold tracking-tight ${
-                  alreadyDone || checkedIn ? 'text-5xl' : 'text-4xl text-muted-foreground/30'
-                }`}>
-                  {elapsed}
+                <span className={`font-mono font-bold tracking-tight ${isCheckedIn || hasAnySession ? 'text-5xl' : 'text-4xl text-muted-foreground/30'}`}>
+                  {totalElapsed}
                 </span>
               </div>
 
-              {/* In / Out times */}
-              <div className="mt-3 flex items-center gap-3 flex-wrap justify-center sm:justify-start">
-                {record?.checkIn && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
-                      <LogIn className="h-3 w-3 text-white" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{record.checkIn}</span>
-                  </div>
-                )}
-                {record?.checkIn && record?.checkOut && (
-                  <span className="text-muted-foreground text-sm">→</span>
-                )}
-                {record?.checkOut && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-full bg-red-400 flex items-center justify-center">
-                      <LogOut className="h-3 w-3 text-white" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{record.checkOut}</span>
-                  </div>
-                )}
-                {notStarted && (
-                  <span className="text-xs text-muted-foreground">No attendance recorded yet</span>
-                )}
-              </div>
+              {/* Session count */}
+              {hasAnySession && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+                  <Badge variant="outline" className="text-xs">
+                    {sessions.length} session{sessions.length > 1 ? 's' : ''} today
+                  </Badge>
+                  {isCheckedIn && lastSession && (
+                    <span className="text-xs text-amber-600 font-medium">
+                      Since {lastSession.checkIn}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* GPS indicator */}
               {gpsStatus === 'getting' && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600">
-                  <Navigation className="h-3 w-3 animate-pulse" />
-                  Getting location...
+                  <Navigation className="h-3 w-3 animate-pulse" /> Getting location...
                 </div>
               )}
               {gpsStatus === 'got' && accuracy !== null && (
                 <div className={`flex items-center gap-1.5 mt-2 text-xs ${accuracy < 50 ? 'text-green-600' : accuracy < 200 ? 'text-amber-500' : 'text-red-500'}`}>
-                  <Navigation className="h-3 w-3" />
-                  GPS ±{Math.round(accuracy)}m
+                  <Navigation className="h-3 w-3" /> GPS ±{Math.round(accuracy)}m
                 </div>
               )}
               {gpsStatus === 'denied' && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-red-500">
-                  <Navigation className="h-3 w-3" />
-                  Location denied
+                  <Navigation className="h-3 w-3" /> Location denied
                 </div>
               )}
             </div>
 
-            {/* Right: action button */}
+            {/* Right: action buttons */}
             <div className="sm:ml-auto flex flex-col items-center gap-3 w-full sm:w-auto">
-              {alreadyDone ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-14 w-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
-                    <CheckCircle className="h-7 w-7 text-white" />
-                  </div>
-                  <Badge className="bg-green-600 text-white">Present · Done</Badge>
-                </div>
-              ) : checkedIn ? (
+              {isCheckedIn ? (
                 <Button
                   onClick={doCheckOut}
                   disabled={actionLoading || gpsStatus === 'getting'}
                   className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-amber-500 hover:bg-amber-600 text-white gap-2"
                 >
-                  {actionLoading ? (
-                    <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking out...</>
-                  ) : (
-                    <><LogOut className="h-5 w-5" />Check Out</>
-                  )}
+                  {actionLoading
+                    ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking out...</>
+                    : <><LogOut className="h-5 w-5" />Check Out</>}
                 </Button>
               ) : (
                 <Button
@@ -357,27 +404,69 @@ export default function EmployeeDashboard() {
                   disabled={actionLoading || gpsStatus === 'getting'}
                   className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-green-600 hover:bg-green-700 text-white gap-2"
                 >
-                  {actionLoading ? (
-                    <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking in...</>
-                  ) : (
-                    <><LogIn className="h-5 w-5" />Check In</>
-                  )}
+                  {actionLoading
+                    ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking in...</>
+                    : <><LogIn className="h-5 w-5" />{hasAnySession ? 'Check In Again' : 'Check In'}</>}
                 </Button>
               )}
               <p className="text-[11px] text-muted-foreground text-center">
-                {alreadyDone ? 'Great work today!' : 'GPS location will be captured'}
+                {isCheckedIn ? 'You can check out and check in again anytime'
+                  : hasAnySession ? 'You can check in multiple times'
+                    : 'GPS location will be captured'}
               </p>
             </div>
           </div>
+
+          {/* Today's sessions timeline */}
+          {sessions.length > 0 && (
+            <div className="border-t border-border/50 px-6 py-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                Today's Sessions
+              </p>
+              <div className="space-y-2">
+                {sessions.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-16">Session {i + 1}</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                        <LogIn className="h-2.5 w-2.5 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold">{s.checkIn}</span>
+                    </div>
+                    {s.checkOut ? (
+                      <>
+                        <span className="text-muted-foreground text-xs">→</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-4 w-4 rounded-full bg-red-400 flex items-center justify-center">
+                            <LogOut className="h-2.5 w-2.5 text-white" />
+                          </div>
+                          <span className="text-xs font-semibold">{s.checkOut}</span>
+                        </div>
+                        {s.checkInMs && s.checkOutMs && (
+                          <Badge variant="outline" className="text-[10px] ml-auto">
+                            {msToHM(s.checkOutMs - s.checkInMs)}
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      <Badge className="ml-auto text-[10px] bg-amber-100 text-amber-700 border-amber-200">
+                        Active
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Present',  val: summary.present, bg: 'from-green-500 to-emerald-600', icon: CheckCircle },
-          { label: 'Absent',   val: summary.absent,  bg: 'from-red-500 to-rose-600',      icon: XCircle },
-          { label: 'Leave',    val: summary.leave,   bg: 'from-amber-400 to-orange-500',  icon: CalendarDays },
+          { label: 'Present', val: summary.present, bg: 'from-green-500 to-emerald-600', icon: CheckCircle },
+          { label: 'Absent', val: summary.absent, bg: 'from-red-500 to-rose-600', icon: XCircle },
+          { label: 'Leave', val: summary.leave, bg: 'from-amber-400 to-orange-500', icon: CalendarDays },
         ].map(c => {
           const Icon = c.icon;
           return (
@@ -400,9 +489,11 @@ export default function EmployeeDashboard() {
         <div className="lg:col-span-2 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Quick Links</p>
           {[
-            { label: 'Log Work',    desc: 'Submit task log',    icon: FileText, bg: 'bg-blue-600',   card: 'bg-blue-50 border-blue-200 text-blue-700',   path: '/employee/timesheet' },
-            { label: 'My Profile',  desc: 'View your details',  icon: User,     bg: 'bg-purple-600', card: 'bg-purple-50 border-purple-200 text-purple-700', path: '/employee/profile' },
-            { label: 'Documents',   desc: 'View uploaded files', icon: FolderOpen, bg: 'bg-amber-500', card: 'bg-amber-50 border-amber-200 text-amber-700', path: '/employee/documents' },
+            { label: 'Log Work', desc: 'Submit task log', icon: FileText, bg: 'bg-blue-600', card: 'bg-blue-50 border-blue-200 text-blue-700', path: '/employee/timesheet' },
+            { label: 'Attendance', desc: 'View attendance history', icon: Calendar, bg: 'bg-teal-600', card: 'bg-teal-50 border-teal-200 text-teal-700', path: '/employee/attendance' },
+            { label: 'Leave Tracker', desc: 'Leaves & holidays', icon: CalendarDays, bg: 'bg-purple-600', card: 'bg-purple-50 border-purple-200 text-purple-700', path: '/employee/leaves' },
+            { label: 'My Profile', desc: 'View your details', icon: User, bg: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200 text-indigo-700', path: '/employee/profile' },
+            { label: 'Documents', desc: 'View uploaded files', icon: FolderOpen, bg: 'bg-amber-500', card: 'bg-amber-50 border-amber-200 text-amber-700', path: '/employee/documents' },
           ].map(a => {
             const Icon = a.icon;
             return (

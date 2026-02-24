@@ -86,9 +86,7 @@ interface LoanRecord {
 interface AttendanceRecord {
   date: string;
   status: string;
-  otHrs?: number;
   employeeId?: string;
-  shiftType?: 'day' | 'night' | 'sunday';
   workHrs?: number;
   totalHours?: number;
   pendingHrs?: number;
@@ -130,15 +128,8 @@ interface PayrollRow {
   pdPay: number;
   hdPay: number;
   ldPay: number;
-  otAmount: number;
-  otMinutes: number;
   haDays: number;
   holidayPay: number;
-  sundaysInMonth: number;
-  sundaysWorked: number;
-  sundayAllowance: number;
-  sundayCount: number;
-  sundayPay: number;
   loanDeduction: number;
   additionalSpAllowance: number;
   basic: number;
@@ -235,7 +226,6 @@ export default function PayrollPreparation() {
 
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [loading, setLoading] = useState(false);
-  const [otRates, setOtRates] = useState<{ [empId: string]: number }>({});
 
   const erpUser =
     typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('erpuser') as any) : null;
@@ -279,21 +269,6 @@ export default function PayrollPreparation() {
     return unsub;
   }, []);
 
-  useEffect(() => {
-    const otRatesRef = ref(database, 'hr/otRates');
-    const unsub = onValue(otRatesRef, (snap) => {
-      const data = snap.val() || {};
-      const otRateMap: { [empId: string]: number } = {};
-      Object.keys(data).forEach((firebaseEmployeeId) => {
-        const record = data[firebaseEmployeeId];
-        if (record?.otRate !== undefined) {
-          otRateMap[firebaseEmployeeId] = record.otRate;
-        }
-      });
-      setOtRates(otRateMap);
-    });
-    return unsub;
-  }, []);
 
   const getApplicableHolidaysForEmployee = (monthKey: string, department: string): number => {
     const monthHolidays = holidays[monthKey];
@@ -306,23 +281,12 @@ export default function PayrollPreparation() {
     return count;
   };
 
-  const countSundaysInMonth = (year: number, month: number): number => {
-    const totalDays = new Date(year, month, 0).getDate();
-    let sundayCount = 0;
-    for (let day = 1; day <= totalDays; day++) {
-      const date = new Date(year, month - 1, day);
-      if (date.getDay() === 0) sundayCount++;
-    }
-    return sundayCount;
-  };
-
   useEffect(() => {
     if (!selectedMonth || employees.length === 0) return;
 
     setLoading(true);
     const [year, month] = selectedMonth.split('-').map(Number);
     const totalDaysInMonth = new Date(year, month, 0).getDate();
-    const sundaysInMonth = countSundaysInMonth(year, month);
 
     const monthPrefix = `${selectedMonth}-`;
 
@@ -355,52 +319,17 @@ export default function PayrollPreparation() {
               let present = 0;
               let half = 0;
               let leave = 0;
-              let totalOtMinutes = 0;
               let totalPendingHours = 0;
-              let sundayWorkedCount = 0; // **NEW: Track Sundays worked**
-              let sundayOtMinutesForWorkers = 0;
 
               empAttendance.forEach((rec) => {
-                const isSunday = rec.shiftType === 'sunday' || rec.status === 'Present';
-
-                // **FIX: Check if it's actually a Sunday**
-                const recDate = new Date(rec.date);
-                const isSundayDate = recDate.getDay() === 0;
-
-                if (isSundayDate && rec.status === 'Present') {
-                  // **Employee worked on Sunday**
-                  sundayWorkedCount++;
-
-                  if (emp.department === 'Staff') {
-                    // **For Staff: Count as present day**
-                    present++;
-                  } else if (emp.department === 'Worker' || emp.department === 'Other Workers') {
-                    // **For Workers: Add hours to OT, don't count as present**
-                    const hrs =
-                      typeof rec.workHrs === 'number'
-                        ? rec.workHrs
-                        : typeof rec.totalHours === 'number'
-                        ? rec.totalHours
-                        : 0;
-                    sundayOtMinutesForWorkers += Math.round(hrs * 60);
-                  }
-                } else if (!isSundayDate) {
-                  // **Regular weekday attendance**
-                  if (rec.status === 'Present') {
-                    present++;
-                  } else if (rec.status === 'Half Day') {
-                    half++;
-                  } else if (rec.status === 'Leave' || rec.status === 'Absent') {
-                    leave++;
-                  }
+                if (rec.status === 'Present') {
+                  present++;
+                } else if (rec.status === 'Half Day') {
+                  half++;
+                } else if (rec.status === 'Leave' || rec.status === 'Absent') {
+                  leave++;
                 }
 
-                // **OT Hours (excluding Sunday OT for workers)**
-                if (typeof rec.otHrs === 'number' && rec.otHrs > 0 && !isSundayDate) {
-                  totalOtMinutes += Math.round(rec.otHrs * 60);
-                }
-
-                // **Pending Hours**
                 if (typeof rec.pendingHrs === 'number' && rec.pendingHrs > 0) {
                   totalPendingHours += rec.pendingHrs;
                 }
@@ -438,14 +367,8 @@ export default function PayrollPreparation() {
                 return sum + (shouldSkip ? 0 : baseEmi);
               }, 0);
 
-              // FIX: Use helper function to safely get monthly salary
               const monthlySalary = getMonthlySalary(emp);
-
-              // FIX: Use helper function to safely get salary breakdown
               const salaryBreakdown = getSalaryBreakdown(emp);
-
-              // **FIXED: Deduct Sundays worked from Sunday count**
-              const effectiveSundayCount = Math.max(0, sundaysInMonth - sundayWorkedCount);
 
               const row: PayrollRow = {
                 employeeId: emp.employeeId,
@@ -469,18 +392,10 @@ export default function PayrollPreparation() {
                 pdPay: 0,
                 hdPay: 0,
                 ldPay: 0,
-                otAmount: 0,
-                otMinutes: totalOtMinutes + sundayOtMinutesForWorkers,
                 haDays: applicableHolidaysCount,
                 holidayPay: 0,
-                sundaysInMonth: sundaysInMonth,
-                sundaysWorked: sundayWorkedCount,
-                sundayAllowance: 0,
-                sundayCount: effectiveSundayCount, // **FIXED: Use effective count**
-                sundayPay: 0,
                 loanDeduction,
                 additionalSpAllowance: salaryBreakdown.additionalSpecialAllowance || 0,
-                // FIX: Use breakdown from helper
                 basic: salaryBreakdown.basic,
                 hra: salaryBreakdown.hra,
                 conveyance: salaryBreakdown.conveyance,
@@ -508,7 +423,7 @@ export default function PayrollPreparation() {
       },
       { onlyOnce: true }
     );
-  }, [selectedMonth, employees, allLoans, attendanceApprovals, holidays, otRates]);
+  }, [selectedMonth, employees, allLoans, attendanceApprovals, holidays]);
 
   // CORRECTED recalculateRow FUNCTION - Shows Special Allowance from DB
 // Replace the ENTIRE recalculateRow function with this:
@@ -524,14 +439,10 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
   const hdPay = Number((row.halfDays * (perDayRate / 2)).toFixed(2));
   const ldPay = Number((row.leaveDays * perDayRate).toFixed(2));
 
-  const employeeOtRate = otRates[emp.id] || 70;
-  const otAmount = Number(((row.otMinutes / 60) * employeeOtRate).toFixed(2));
-
   const holidayPay = Number((row.haDays * perDayRate).toFixed(2));
-  const sundayPay = Number((row.sundayCount * perDayRate).toFixed(2));
   // Calculate base earnings (without Additional SP Allowance - that's added separately as fixed amount)
   const baseEarnings = Number(
-    (pdPay + hdPay + holidayPay + sundayPay).toFixed(2)
+    (pdPay + hdPay + holidayPay).toFixed(2)
   );
 
   let basic = 0;
@@ -578,10 +489,7 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
     pdPay,
     hdPay,
     ldPay,
-    otAmount: 0,
     holidayPay,
-    sundayPay,
-    sundayAllowance: 0,
     basic,
     hra,
     conveyance,
@@ -708,8 +616,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
       { label: 'Total Working Days', value: row.totalDays.toString() },
       { label: 'Present Days', value: row.actualPresentDays.toString() },
       { label: 'Leaves Days', value: row.leaveDays.toString() },
-      { label: 'Sundays in Month', value: row.sundaysInMonth.toString() },
-      { label: 'Sundays Worked', value: row.sundaysWorked > 0 ? row.sundaysWorked.toString() : '-' },
     ];
 
     employeeDetails.forEach((item, index) => {
@@ -746,22 +652,9 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
     // Calculate the breakdown components
     const grossPayable = row.pdPay + row.hdPay; // Present + Half day pay
     const totalEarningsBeforeDeductions =
-      grossPayable + row.holidayPay + row.sundayPay;
+      grossPayable + row.holidayPay;
 
     const calculations = [
-      // `Present Pay: ${row.actualPresentDays} days × ₹${row.perDayRate.toFixed(2)} = ₹${row.pdPay.toFixed(2)}`,
-      // `Half Day Pay: ${row.halfDays} days × ₹${(row.perDayRate / 2).toFixed(2)} = ₹${row.hdPay.toFixed(2)}`,
-      // `Holiday Pay: ${row.haDays} days × ₹${row.perDayRate.toFixed(2)} = ₹${row.holidayPay.toFixed(2)}`,
-      // `Sunday Pay: ${row.sundayCount} days × ₹${row.perDayRate.toFixed(2)} = ₹${row.sundayPay.toFixed(2)}`,
-      // `Overtime: ${(row.otMinutes / 60).toFixed(2)} hrs × ₹${otRates[emp.id] || 70}/hr = ₹${row.otAmount.toFixed(2)}`,
-      // `Total Payable Amount: ₹${totalEarningsBeforeDeductions.toFixed(2)}`,
-      // '',
-      // `Salary Distribution (from ₹${totalEarningsBeforeDeductions.toFixed(2)}):`,
-      // `  - Basic (50%): ₹${row.basic.toFixed(2)}`,
-      // `  - HRA (25%): ₹${row.hra.toFixed(2)}`,
-      // `  - Conveyance: ₹${row.conveyance.toFixed(2)}`,
-      // `  - Other Allowance: ₹${row.otherAllowance.toFixed(2)}`,
-      // `  - Special Allowance: ₹${(row.specialAllowance + row.additionalSpAllowance).toFixed(2)}`,
     ];
 
     if (row.leaveDays > 0) {
@@ -818,7 +711,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
       { label: 'OTHER ALLOWANCE', amount: row.otherAllowance },
       { label: 'SPECIAL ALLOWANCE', amount: row.specialAllowance },
       { label: 'ADDL. SP ALLOWANCE', amount: row.additionalSpAllowance },
-      { label: 'SUNDAY PAY', amount: row.sundayPay },
       { label: 'HOLIDAY PAY', amount: row.holidayPay },
     ];
 
@@ -1022,8 +914,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
       'L.D Deduction',
       'Holidays',
       'Holiday Pay',
-      'Sundays',
-      'Sunday Pay',
       'Add SP Allowance',
       'Basic',
       'HRA',
@@ -1071,8 +961,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
         row.ldPay,
         row.haDays,
         row.holidayPay,
-        row.sundayCount,
-        row.sundayPay,
         row.additionalSpAllowance,
         row.basic,
         row.hra,
@@ -1183,7 +1071,7 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
                 })}
               </h1>
               <p className="text-gray-600 mt-1 text-sm lg:text-base">
-                Includes holiday pay & Sunday pay based on daily salary rate
+                Includes holiday pay based on daily salary rate
               </p>
             </div>
 
@@ -1324,8 +1212,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
                       <TableHead className="font-bold min-w-[90px]">L.D Deduct</TableHead>
                       <TableHead className="font-bold text-center min-w-[70px]">Holidays</TableHead>
                       <TableHead className="font-bold min-w-[100px]">Holiday Pay</TableHead>
-                      <TableHead className="font-bold text-center min-w-[70px]">Sundays</TableHead>
-                      <TableHead className="font-bold min-w-[100px]">Sunday Pay</TableHead>
                       <TableHead className="font-bold min-w-[100px]">Add SP</TableHead>
                       <TableHead className="font-bold min-w-[100px]">Basic</TableHead>
                       <TableHead className="font-bold min-w-[100px]">HRA</TableHead>
@@ -1416,12 +1302,6 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
                           </TableCell>
                           <TableCell className="font-bold text-green-700">
                             ₹{row.holidayPay.toLocaleString('en-IN')}
-                          </TableCell>
-                          <TableCell className="text-center font-medium text-purple-600">
-                            {row.sundayCount}
-                          </TableCell>
-                          <TableCell className="font-bold text-purple-700">
-                            ₹{row.sundayPay.toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell>₹{row.additionalSpAllowance.toLocaleString('en-IN')}</TableCell>
                           <TableCell>₹{row.basic.toLocaleString('en-IN')}</TableCell>

@@ -19,9 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Edit, Download, Trash2, Search, X, Filter, Calendar, Eye } from 'lucide-react';
+import { Edit, Download, Trash2, Search, X, Filter, Calendar, Eye, ShoppingCart, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAllRecords, updateRecord, deleteRecord } from '@/services/firebase';
+import { getAllRecords, updateRecord, deleteRecord, createRecord } from '@/services/firebase';
+import { quotationToSalesOrder, quotationToInvoice } from './utils/documentConversion';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
@@ -368,6 +369,7 @@ export default function Quotations() {
                     <SelectItem value="Accepted">Accepted</SelectItem>
                     <SelectItem value="Rejected">Rejected</SelectItem>
                     <SelectItem value="Expired">Expired</SelectItem>
+                    <SelectItem value="Converted">Converted</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -573,10 +575,11 @@ export default function Quotations() {
                                 <SelectItem value="Accepted">Accepted</SelectItem>
                                 <SelectItem value="Rejected">Rejected</SelectItem>
                                 <SelectItem value="Expired">Expired</SelectItem>
+                                <SelectItem value="Converted">Converted</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="space-x-2">
+                          <TableCell className="space-x-1">
                             <Button
                               size="sm"
                               variant="ghost"
@@ -604,7 +607,33 @@ export default function Quotations() {
                               <Download className="h-4 w-4 text-green-600" />
                             </Button>
 
-                            {q.status !== 'Accepted' && (
+                            {q.status === 'Accepted' && !q.convertedToSOId && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/sales/orders/create/${q.id}`)}
+                                title="Convert to Sales Order"
+                              >
+                                <ShoppingCart className="h-4 w-4 text-purple-600" />
+                              </Button>
+                            )}
+
+                            {q.status === 'Accepted' && !q.convertedToInvoiceId && !q.convertedToSOId && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/sales/invoices/create?fromQuotation=${q.id}`)}
+                                title="Convert to Invoice"
+                              >
+                                <FileText className="h-4 w-4 text-orange-600" />
+                              </Button>
+                            )}
+
+                            {q.convertedToSOId && (
+                              <span className="text-xs text-purple-600 font-medium">SO Created</span>
+                            )}
+
+                            {q.status !== 'Accepted' && q.status !== 'Converted' && (
                               <Button
                                 size="sm"
                                 variant="ghost"

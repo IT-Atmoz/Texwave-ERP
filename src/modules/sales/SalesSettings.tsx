@@ -5,9 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Trash2, Save, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { SalesSettings, BankAccount } from '@/types/shipment';
+import { SalesSettings, BankAccount, SalespersonEntry } from '@/types/shipment';
 import { getRecord, updateRecord, createRecord } from '@/services/firebase';
 
 export default function SalesSettingsPage() {
@@ -35,7 +36,12 @@ export default function SalesSettingsPage() {
       soPrefix: 'SOFY',
       plPrefix: 'SPMTFY',
       invoicePrefix: '25',
+      dcPrefix: 'DC',
+      cnPrefix: 'CN',
+      retainerPrefix: 'RET',
+      paymentPrefix: 'RCPT',
     },
+    salespersons: [],
   });
 
   useEffect(() => {
@@ -101,6 +107,32 @@ export default function SalesSettingsPage() {
     });
   };
 
+  const addSalesperson = () => {
+    setSettings({
+      ...settings,
+      salespersons: [
+        ...(settings.salespersons || []),
+        { id: Date.now().toString(), name: '', email: '', phone: '', commissionPercent: 0 },
+      ],
+    });
+  };
+
+  const removeSalesperson = (id: string) => {
+    setSettings({
+      ...settings,
+      salespersons: (settings.salespersons || []).filter(sp => sp.id !== id),
+    });
+  };
+
+  const updateSalesperson = (id: string, field: keyof SalespersonEntry, value: any) => {
+    setSettings({
+      ...settings,
+      salespersons: (settings.salespersons || []).map(sp =>
+        sp.id === id ? { ...sp, [field]: value } : sp
+      ),
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -114,6 +146,15 @@ export default function SalesSettingsPage() {
         </Button>
       </div>
 
+      <Tabs defaultValue="company" className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsTrigger value="company">Company</TabsTrigger>
+          <TabsTrigger value="numbering">Numbering</TabsTrigger>
+          <TabsTrigger value="bank">Bank & Signatory</TabsTrigger>
+          <TabsTrigger value="salespersons">Salespersons</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="company" className="space-y-6">
       {/* Company Details */}
       <Card>
         <CardHeader>
@@ -229,6 +270,110 @@ export default function SalesSettingsPage() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="numbering" className="space-y-6">
+      {/* Document Numbering - moved here */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Numbering Formats</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Quotation Prefix (SQ)</Label>
+              <Input
+                value={settings.numberingFormats.sqPrefix}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, sqPrefix: e.target.value }
+                })}
+                placeholder="SQFY"
+              />
+            </div>
+            <div>
+              <Label>Sales Order Prefix (SO)</Label>
+              <Input
+                value={settings.numberingFormats.soPrefix}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, soPrefix: e.target.value }
+                })}
+                placeholder="SOFY"
+              />
+            </div>
+            <div>
+              <Label>Packing List Prefix</Label>
+              <Input
+                value={settings.numberingFormats.plPrefix}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, plPrefix: e.target.value }
+                })}
+                placeholder="SPMTFY"
+              />
+            </div>
+            <div>
+              <Label>Invoice Prefix</Label>
+              <Input
+                value={settings.numberingFormats.invoicePrefix}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, invoicePrefix: e.target.value }
+                })}
+                placeholder="25"
+              />
+            </div>
+            <div>
+              <Label>Delivery Challan Prefix</Label>
+              <Input
+                value={settings.numberingFormats.dcPrefix || 'DC'}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, dcPrefix: e.target.value }
+                })}
+                placeholder="DC"
+              />
+            </div>
+            <div>
+              <Label>Credit Note Prefix</Label>
+              <Input
+                value={settings.numberingFormats.cnPrefix || 'CN'}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, cnPrefix: e.target.value }
+                })}
+                placeholder="CN"
+              />
+            </div>
+            <div>
+              <Label>Retainer Invoice Prefix</Label>
+              <Input
+                value={settings.numberingFormats.retainerPrefix || 'RET'}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, retainerPrefix: e.target.value }
+                })}
+                placeholder="RET"
+              />
+            </div>
+            <div>
+              <Label>Payment Receipt Prefix</Label>
+              <Input
+                value={settings.numberingFormats.paymentPrefix || 'RCPT'}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  numberingFormats: { ...settings.numberingFormats, paymentPrefix: e.target.value }
+                })}
+                placeholder="RCPT"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+        </TabsContent>
+
+        <TabsContent value="bank" className="space-y-6">
       {/* Bank Accounts */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -327,60 +472,81 @@ export default function SalesSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Document Numbering */}
+        </TabsContent>
+
+        <TabsContent value="salespersons" className="space-y-6">
+      {/* Salesperson Management */}
       <Card>
-        <CardHeader>
-          <CardTitle>Document Numbering Formats</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Salespersons
+          </CardTitle>
+          <Button onClick={addSalesperson} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Salesperson
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Quotation Prefix (SQ)</Label>
-              <Input
-                value={settings.numberingFormats.sqPrefix}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  numberingFormats: { ...settings.numberingFormats, sqPrefix: e.target.value }
-                })}
-                placeholder="SQFY"
-              />
+          {(!settings.salespersons || settings.salespersons.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No salespersons added yet.</p>
+              <p className="text-sm mt-1">Add salespersons to track commissions and assign to documents.</p>
             </div>
-            <div>
-              <Label>Sales Order Prefix (SO)</Label>
-              <Input
-                value={settings.numberingFormats.soPrefix}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  numberingFormats: { ...settings.numberingFormats, soPrefix: e.target.value }
-                })}
-                placeholder="SOFY"
-              />
-            </div>
-            <div>
-              <Label>Packing List Prefix</Label>
-              <Input
-                value={settings.numberingFormats.plPrefix}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  numberingFormats: { ...settings.numberingFormats, plPrefix: e.target.value }
-                })}
-                placeholder="SPMTFY"
-              />
-            </div>
-            <div>
-              <Label>Invoice Prefix</Label>
-              <Input
-                value={settings.numberingFormats.invoicePrefix}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  numberingFormats: { ...settings.numberingFormats, invoicePrefix: e.target.value }
-                })}
-                placeholder="25"
-              />
-            </div>
-          </div>
+          ) : (
+            settings.salespersons.map((sp, index) => (
+              <div key={sp.id} className="p-4 border rounded-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium">Salesperson {index + 1}</h4>
+                  <Button variant="ghost" size="sm" onClick={() => removeSalesperson(sp.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <Label>Name *</Label>
+                    <Input
+                      value={sp.name}
+                      onChange={(e) => updateSalesperson(sp.id, 'name', e.target.value)}
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      value={sp.email}
+                      onChange={(e) => updateSalesperson(sp.id, 'email', e.target.value)}
+                      placeholder="email@example.com"
+                      type="email"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input
+                      value={sp.phone}
+                      onChange={(e) => updateSalesperson(sp.id, 'phone', e.target.value)}
+                      placeholder="+91-XXXXXXXXXX"
+                    />
+                  </div>
+                  <div>
+                    <Label>Commission %</Label>
+                    <Input
+                      type="number"
+                      value={sp.commissionPercent}
+                      onChange={(e) => updateSalesperson(sp.id, 'commissionPercent', Number(e.target.value))}
+                      min={0}
+                      max={100}
+                      step={0.5}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

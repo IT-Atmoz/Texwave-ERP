@@ -1,147 +1,228 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/services/firebase';
 import { ref, onValue, set, update } from 'firebase/database';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, CheckCircle, AlertTriangle, Clock, Navigation } from 'lucide-react';
+import {
+  MapPin, Navigation, LogIn, LogOut, Clock, AlertTriangle,
+} from 'lucide-react';
+import {
+  format12h, msToHMS, msToHM,
+  type AttendanceSession, type AttendanceRecord,
+} from './EmployeeDashboard';
 
 type GpsStatus = 'idle' | 'getting' | 'got' | 'denied';
 
-interface AttendanceRecord {
-  employeeId: string;
-  employeeName: string;
-  date: string;
-  status: string;
-  checkIn?: string;
-  checkOut?: string;
-  lat?: number;
-  lng?: number;
-  checkOutLat?: number;
-  checkOutLng?: number;
-  createdAt?: number;
-  updatedAt?: number;
-}
-
-function format12h(date: Date): string {
-  return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function accuracyColor(accuracy: number | null): string {
-  if (accuracy === null) return 'text-gray-400';
-  if (accuracy < 50) return 'text-green-600';
-  if (accuracy < 200) return 'text-amber-500';
+function accuracyColor(a: number | null) {
+  if (a === null) return 'text-gray-400';
+  if (a < 50) return 'text-green-600';
+  if (a < 200) return 'text-amber-500';
   return 'text-red-500';
-}
-
-function accuracyLabel(accuracy: number | null): string {
-  if (accuracy === null) return 'Unknown';
-  if (accuracy < 50) return 'High';
-  if (accuracy < 200) return 'Medium';
-  return 'Low';
 }
 
 export default function WebCheckin() {
   const { user } = useAuth();
-  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
+  const [record, setRecord] = useState<AttendanceRecord | null>(null);
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [totalElapsed, setTotalElapsed] = useState('00:00:00');
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
+  // ── Live record ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.employeeId) return;
-    const attRef = ref(database, `hr/attendance/${today}/${user.employeeId}`);
-    const unsub = onValue(attRef, (snap) => {
-      setTodayRecord(snap.exists() ? snap.val() : null);
+    const unsub = onValue(ref(database, `hr/attendance/${today}/${user.employeeId}`), snap => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (!val.sessions) {
+          // Migrate old format
+          setRecord({
+            ...val,
+            sessions: val.checkIn ? [{
+              checkIn: val.checkIn,
+              checkInMs: val.createdAt ?? Date.now(),
+              checkOut: val.checkOut,
+              checkOutMs: val.checkOutAt,
+              lat: val.lat,
+              lng: val.lng,
+            }] : [],
+            totalWorkedMs: (val.checkIn && val.checkOut && val.createdAt && val.checkOutAt)
+              ? val.checkOutAt - val.createdAt : 0,
+          });
+        } else {
+          setRecord(val);
+        }
+      } else {
+        setRecord(null);
+      }
     });
     return () => unsub();
   }, [user?.employeeId, today]);
 
-  const getLocation = (): Promise<{ lat: number; lng: number; accuracy: number } | null> => {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        resolve(null);
-        return;
-      }
+  // ── Stopwatch ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (tickRef.current) clearInterval(tickRef.current);
+    const sessions = record?.sessions ?? [];
+    const lastSession = sessions[sessions.length - 1];
+    const activeSession = lastSession && !lastSession.checkOut ? lastSession : null;
+    const completedMs = record?.totalWorkedMs ?? 0;
+
+    if (activeSession) {
+      const startMs = activeSession.checkInMs;
+      const tick = () => setTotalElapsed(msToHMS(completedMs + (Date.now() - startMs)));
+      tick();
+      tickRef.current = setInterval(tick, 1000);
+    } else {
+      setTotalElapsed(msToHMS(completedMs));
+    }
+    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, [record]);
+
+  // ── GPS ────────────────────────────────────────────────────────────────────
+  const getLocation = (): Promise<{ lat: number; lng: number; accuracy: number } | null> =>
+    new Promise(resolve => {
+      if (!navigator.geolocation) { resolve(null); return; }
       setGpsStatus('getting');
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude, accuracy: acc } = pos.coords;
-          setLat(latitude);
-          setLng(longitude);
-          setAccuracy(acc);
+        pos => {
+          setLat(pos.coords.latitude);
+          setLng(pos.coords.longitude);
+          setAccuracy(pos.coords.accuracy);
           setGpsStatus('got');
-          resolve({ lat: latitude, lng: longitude, accuracy: acc });
+          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
         },
-        () => {
-          setGpsStatus('denied');
-          resolve(null);
-        },
+        () => { setGpsStatus('denied'); resolve(null); },
         { enableHighAccuracy: true, timeout: 8000 }
       );
     });
-  };
 
+  // ── Check In ───────────────────────────────────────────────────────────────
   const doCheckIn = async () => {
     if (!user?.employeeId) return;
     setLoading(true);
-    const location = await getLocation();
-    if (!location) {
-      toast.warning('Location unavailable — checking in without GPS');
-    }
+    const loc = await getLocation();
+    if (!loc) toast.warning('Location unavailable — checking in without GPS');
+
     const now = new Date();
-    await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-      employeeId: user.employeeId,
-      employeeName: user.name,
-      date: today,
-      status: 'Present',
+    const nowMs = Date.now();
+    const newSession: AttendanceSession = {
       checkIn: format12h(now),
-      lat: location?.lat ?? null,
-      lng: location?.lng ?? null,
-      createdAt: Date.now(),
-    });
-    toast.success('Checked in successfully!');
-    setLoading(false);
-  };
+      checkInMs: nowMs,
+      lat: loc?.lat ?? null,
+      lng: loc?.lng ?? null,
+    };
 
-  const doCheckOut = async () => {
-    if (!user?.employeeId) return;
-    setLoading(true);
-    const location = await getLocation();
-    if (!location) {
-      toast.warning('Location unavailable — checking out without GPS');
+    const existingSessions = record?.sessions ?? [];
+
+    if (!record) {
+      await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+        employeeId: user.employeeId,
+        employeeName: user.name,
+        date: today,
+        status: 'Present',
+        sessions: [newSession],
+        totalWorkedMs: 0,
+        checkIn: format12h(now),
+        createdAt: nowMs,
+      });
+    } else {
+      await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+        sessions: [...existingSessions, newSession],
+        status: 'Present',
+      });
     }
-    const now = new Date();
-    await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-      checkOut: format12h(now),
-      checkOutLat: location?.lat ?? null,
-      checkOutLng: location?.lng ?? null,
-      updatedAt: Date.now(),
-    });
-    toast.success('Checked out successfully!');
+
+    toast.success(`Checked in at ${format12h(now)}`);
     setLoading(false);
   };
 
-  const alreadyDone = !!(todayRecord?.checkIn && todayRecord?.checkOut);
-  const checkedIn = !!(todayRecord?.checkIn && !todayRecord?.checkOut);
+  // ── Check Out ──────────────────────────────────────────────────────────────
+  const doCheckOut = async () => {
+    if (!user?.employeeId || !record) return;
+    setLoading(true);
+    const loc = await getLocation();
+    if (!loc) toast.warning('Location unavailable — checking out without GPS');
+
+    const now = new Date();
+    const nowMs = Date.now();
+    const sessions = [...(record.sessions ?? [])];
+    const lastIdx = sessions.length - 1;
+    const active = sessions[lastIdx];
+    const sessionMs = nowMs - (active.checkInMs ?? nowMs);
+
+    sessions[lastIdx] = {
+      ...active,
+      checkOut: format12h(now),
+      checkOutMs: nowMs,
+      checkOutLat: loc?.lat ?? null,
+      checkOutLng: loc?.lng ?? null,
+    };
+
+    await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+      sessions,
+      totalWorkedMs: (record.totalWorkedMs ?? 0) + sessionMs,
+      checkOut: format12h(now),
+      checkOutAt: nowMs,
+      updatedAt: nowMs,
+    });
+
+    toast.success(`Checked out at ${format12h(now)}`);
+    setLoading(false);
+  };
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const sessions = record?.sessions ?? [];
+  const lastSession = sessions[sessions.length - 1];
+  const isCheckedIn = sessions.length > 0 && !!lastSession && !lastSession.checkOut;
+  const hasAnySession = sessions.length > 0;
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
+    <div className="max-w-lg mx-auto space-y-5">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Attendance Check-In</h1>
+        <h1 className="text-2xl font-bold">Attendance</h1>
         <p className="text-muted-foreground text-sm mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
       </div>
 
+      {/* Total time card */}
+      <Card className={`border-2 ${isCheckedIn
+        ? 'border-amber-300 bg-amber-50'
+        : hasAnySession
+          ? 'border-green-200 bg-green-50'
+          : 'border-border'
+        }`}>
+        <CardContent className="pt-6 pb-6 text-center">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+            Total Time Today
+          </p>
+          <div className={`text-5xl font-mono font-bold ${isCheckedIn ? 'text-amber-600' : hasAnySession ? 'text-green-600' : 'text-muted-foreground/30'}`}>
+            {totalElapsed}
+          </div>
+          {isCheckedIn && (
+            <div className="mt-2 flex items-center justify-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-sm text-amber-700">Currently checked in since {lastSession?.checkIn}</span>
+            </div>
+          )}
+          {hasAnySession && !isCheckedIn && (
+            <Badge className="mt-3 bg-green-600 text-white">
+              {sessions.length} session{sessions.length > 1 ? 's' : ''} completed today
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
+
       {/* GPS Status */}
       {gpsStatus !== 'idle' && (
-        <Card className="border-border">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <Navigation className={`h-5 w-5 ${gpsStatus === 'got' ? 'text-green-600' : gpsStatus === 'denied' ? 'text-red-500' : 'text-amber-500 animate-pulse'}`} />
@@ -153,8 +234,7 @@ export default function WebCheckin() {
                 </p>
                 {gpsStatus === 'got' && accuracy !== null && (
                   <p className={`text-xs ${accuracyColor(accuracy)}`}>
-                    Accuracy: {accuracyLabel(accuracy)} ({Math.round(accuracy)}m)
-                    · {lat?.toFixed(5)}, {lng?.toFixed(5)}
+                    Accuracy: {Math.round(accuracy)}m · {lat?.toFixed(5)}, {lng?.toFixed(5)}
                   </p>
                 )}
               </div>
@@ -163,83 +243,86 @@ export default function WebCheckin() {
         </Card>
       )}
 
-      {/* Check-In Status Card */}
-      {alreadyDone ? (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-6 pb-6 text-center">
-            <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-green-800">Attendance Complete</h2>
-            <p className="text-sm text-green-700 mt-1">
-              Checked in: <span className="font-semibold">{todayRecord?.checkIn}</span>
-            </p>
-            <p className="text-sm text-green-700">
-              Checked out: <span className="font-semibold">{todayRecord?.checkOut}</span>
-            </p>
-            <Badge className="mt-3 bg-green-600">Present</Badge>
-          </CardContent>
-        </Card>
-      ) : checkedIn ? (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="pt-6 pb-6 text-center">
-            <Clock className="h-14 w-14 text-amber-500 mx-auto mb-3" />
-            <h2 className="text-lg font-bold text-amber-800">Currently Checked In</h2>
-            <p className="text-sm text-amber-700 mt-1">
-              Since <span className="font-semibold">{todayRecord?.checkIn}</span>
-            </p>
-            {todayRecord?.lat && (
-              <p className="text-xs text-amber-600 mt-1 flex items-center justify-center gap-1">
-                <MapPin className="h-3 w-3" />
-                Location recorded
-              </p>
-            )}
-            <Button
-              onClick={doCheckOut}
-              disabled={loading || gpsStatus === 'getting'}
-              className="mt-4 bg-amber-500 hover:bg-amber-600 text-white w-full h-14 text-lg font-semibold rounded-xl"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Checking out...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Check Out
-                </span>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Action button */}
+      {isCheckedIn ? (
+        <Button
+          onClick={doCheckOut}
+          disabled={loading || gpsStatus === 'getting'}
+          className="w-full h-14 text-lg font-semibold rounded-xl bg-amber-500 hover:bg-amber-600 text-white gap-2"
+        >
+          {loading
+            ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking out...</>
+            : <><LogOut className="h-5 w-5" />Check Out</>}
+        </Button>
       ) : (
-        <Card className="border-border">
-          <CardContent className="pt-6 pb-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-              <MapPin className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-lg font-bold">Not Checked In Yet</h2>
-            <p className="text-sm text-muted-foreground mt-1">Tap the button below to mark your attendance</p>
-            <Button
-              onClick={doCheckIn}
-              disabled={loading || gpsStatus === 'getting'}
-              className="mt-4 bg-green-600 hover:bg-green-700 text-white w-full h-14 text-lg font-semibold rounded-xl"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Checking in...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Check In
-                </span>
-              )}
-            </Button>
-            <p className="text-xs text-muted-foreground mt-3 flex items-center justify-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Your GPS location will be recorded
-            </p>
+        <Button
+          onClick={doCheckIn}
+          disabled={loading || gpsStatus === 'getting'}
+          className="w-full h-14 text-lg font-semibold rounded-xl bg-green-600 hover:bg-green-700 text-white gap-2"
+        >
+          {loading
+            ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking in...</>
+            : <><LogIn className="h-5 w-5" />{hasAnySession ? 'Check In Again' : 'Check In'}</>}
+        </Button>
+      )}
+
+      {!hasAnySession && (
+        <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Your GPS location will be recorded
+        </p>
+      )}
+
+      {/* Today's sessions list */}
+      {sessions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Today's Sessions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {sessions.map((s, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                <div className="flex flex-col items-center">
+                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                      <LogIn className="h-2.5 w-2.5 text-white" />
+                    </div>
+                    <span className="text-sm font-medium">{s.checkIn}</span>
+                    {s.checkOut && (
+                      <>
+                        <span className="text-muted-foreground">→</span>
+                        <div className="h-4 w-4 rounded-full bg-red-400 flex items-center justify-center">
+                          <LogOut className="h-2.5 w-2.5 text-white" />
+                        </div>
+                        <span className="text-sm font-medium">{s.checkOut}</span>
+                      </>
+                    )}
+                  </div>
+                  {s.checkInMs && s.checkOutMs && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Duration: {msToHM(s.checkOutMs - s.checkInMs)}
+                    </p>
+                  )}
+                  {s.lat && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-2.5 w-2.5" />
+                      Location recorded
+                    </p>
+                  )}
+                </div>
+                {!s.checkOut && (
+                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">Active</Badge>
+                )}
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
