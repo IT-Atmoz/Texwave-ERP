@@ -24,7 +24,6 @@ import { getAllRecords } from '@/services/firebase';
 import { database } from '@/services/firebase';
 import { ref, onValue, set } from 'firebase/database';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { LiveClock } from '@/components/layout/LiveClock';
 
 interface TodoItem {
   id: string;
@@ -294,15 +293,12 @@ export default function HRDashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Row 1: Greeting Banner + LiveClock */}
-      <div className="flex items-center justify-between bg-white rounded-xl border border-border px-6 py-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {greeting}, {userName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
-        </div>
-        <LiveClock />
+      {/* Row 1: Greeting Banner */}
+      <div className="bg-white rounded-xl border border-border px-6 py-4">
+        <h1 className="text-2xl font-bold text-foreground">
+          {greeting}, {userName}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
       </div>
 
       {/* Row 2: 4 KPI Cards */}
