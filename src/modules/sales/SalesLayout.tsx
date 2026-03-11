@@ -3,7 +3,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
-import { LiveClock } from '@/components/layout/LiveClock';
 
 import {
   Home,
@@ -94,14 +93,11 @@ export default function SalesLayout() {
   return (
     <Layout>
       <div className="space-y-6 pb-10">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Sales</h1>
-            <p className="text-muted-foreground mt-1">
-              Estimates, orders, invoices and payment management
-            </p>
-          </div>
-          <LiveClock />
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Sales</h1>
+          <p className="text-muted-foreground mt-1">
+            Estimates, orders, invoices and payment management
+          </p>
         </div>
 
         <div className="border-b border-border">

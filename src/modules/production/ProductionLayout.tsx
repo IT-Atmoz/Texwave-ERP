@@ -1,6 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { LiveClock } from '@/components/layout/LiveClock';
 import { LayoutDashboard, Briefcase, Package, Archive, Boxes } from 'lucide-react';
 
 export default function ProductionLayout() {
@@ -15,12 +14,9 @@ export default function ProductionLayout() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Production</h1>
-            <p className="text-muted-foreground mt-1">Manufacturing and inventory management</p>
-          </div>
-          <LiveClock />
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Production</h1>
+          <p className="text-muted-foreground mt-1">Manufacturing and inventory management</p>
         </div>
 
         <div className="flex gap-2 border-b border-border overflow-x-auto">

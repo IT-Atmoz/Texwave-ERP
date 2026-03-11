@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { LiveClock } from '@/components/layout/LiveClock';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -245,12 +244,9 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Financial overview — Receivables, Payables, Banking & HR</p>
-          </div>
-          <LiveClock />
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Financial overview — Receivables, Payables, Banking & HR</p>
         </div>
 
         {/* Financial KPI Cards */}

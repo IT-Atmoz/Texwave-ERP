@@ -1,6 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { LiveClock } from '@/components/layout/LiveClock';
 import { LayoutDashboard, Inbox, ClipboardCheck, Link2, BarChart3 } from 'lucide-react';
 
 export default function QualityLayout() {
@@ -14,12 +13,9 @@ export default function QualityLayout() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Quality Module</h1>
-            <p className="text-muted-foreground mt-1">Quality Control & Inspection Management</p>
-          </div>
-          <LiveClock />
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Quality Module</h1>
+          <p className="text-muted-foreground mt-1">Quality Control & Inspection Management</p>
         </div>
 
         <div className="flex gap-2 border-b border-border">

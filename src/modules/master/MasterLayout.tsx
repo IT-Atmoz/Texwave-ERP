@@ -1,6 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { LiveClock } from '@/components/layout/LiveClock';
 import { ShoppingCart, Users, Package, Wallet, Briefcase } from 'lucide-react';
 
 export default function MasterLayout() {
@@ -15,12 +14,9 @@ export default function MasterLayout() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Master Lists</h1>
-            <p className="text-muted-foreground mt-1">Centralized master data for all modules</p>
-          </div>
-          <LiveClock />
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Master Lists</h1>
+          <p className="text-muted-foreground mt-1">Centralized master data for all modules</p>
         </div>
 
         <div className="flex gap-2 border-b border-border overflow-x-auto">
