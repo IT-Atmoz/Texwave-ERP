@@ -118,12 +118,17 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Optimize for 80% zoom by using smaller base font size */
+    font-size: 14px;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
+    /* Ensure full viewport usage */
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 
   /* Smooth scrollbar */
@@ -418,5 +423,129 @@
     margin-right: 5px;
     background: currentColor;
     animation: glow-pulse 2s ease-in-out infinite;
+  }
+}
+
+/* ─── Responsive Layout Optimizations for 80% Zoom ────────────────────────── */
+@layer utilities {
+  /* Make containers more fluid and responsive */
+  .responsive-container {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Compact spacing for better zoom compatibility */
+  .compact-spacing {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  /* Ensure tables are scrollable on smaller zoom */
+  .responsive-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize card spacing */
+  .compact-card {
+    padding: 1rem;
+  }
+
+  /* Responsive text sizing */
+  .responsive-text {
+    font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+  }
+
+  /* Hide scrollbar for better appearance */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ─── Global Layout Adjustments for Better Zoom Support ───────────────────── */
+@layer base {
+  /* Ensure main content area is properly constrained */
+  main {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Make all containers responsive by default */
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Optimize input and button sizes for zoom */
+  input, select, textarea, button {
+    font-size: inherit;
+  }
+
+  /* Ensure cards don't overflow */
+  [class*="card"],
+  [class*="Card"] {
+    max-width: 100%;
+  }
+
+  /* Make tables responsive */
+  table {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Prevent layout shift on zoom */
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Override large max-widths for better zoom support */
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl {
+    max-width: 100% !important;
+  }
+
+  /* Responsive padding adjustments */
+  @media (max-width: 1400px) {
+    .max-w-7xl,
+    .max-w-6xl,
+    .max-w-5xl {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
+  /* Ensure all table containers are scrollable */
+  .overflow-x-auto {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Compact form layouts */
+  form {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Responsive grid adjustments */
+  .grid {
+    width: 100%;
+  }
+
+  /* Ensure dialog/modal content doesn't overflow */
+  [role="dialog"],
+  [role="alertdialog"] {
+    max-width: 95vw !important;
   }
 }

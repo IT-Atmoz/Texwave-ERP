@@ -27,6 +27,7 @@ import { getAllRecords } from "@/services/firebase";
 // HR Components
 import EmployeeTimesheet from "./modules/hr/EmployeeTimesheet";
 import Attendance from "./modules/hr/Attendance";
+import EmployeeOnboardingForm from "./modules/hr/EmployeeOnboardingForm";
 
 // Contacts Module
 import ContactsLayout from "./modules/contacts/ContactsLayout";
@@ -678,6 +679,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* PUBLIC – Employee Self-Onboarding (no auth required) */}
+              <Route path="/onboarding/:token" element={<EmployeeOnboardingForm />} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

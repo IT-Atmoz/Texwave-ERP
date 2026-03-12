@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, FileText, X, AlertCircle, GraduationCap, Download, Eye, 
-  Briefcase, User, CreditCard, AlertTriangle, Home, Droplet, Phone, MapPin, 
-  Calendar, Globe, Plus, Trash2, Building, Award, Lock, History, TrendingUp, 
-  TrendingDown, Clock, Edit3, IndianRupee, CheckCircle2
+  ArrowLeft, FileText, X, AlertCircle, GraduationCap, Download, Eye,
+  Briefcase, User, CreditCard, AlertTriangle, Home, Droplet, Phone, MapPin,
+  Calendar, Globe, Plus, Trash2, Building, Award, Lock, History, TrendingUp,
+  TrendingDown, Clock, Edit3, IndianRupee, CheckCircle2, Link, Copy, Send, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { createRecord, updateRecord, getRecordById, getAllRecords, database } from '@/services/firebase';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, update } from 'firebase/database';
 import type { Employee } from '@/types';
 
 // Salary Revision Types
@@ -96,6 +96,12 @@ export default function EmployeeForm() {
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalPassword, setPortalPassword] = useState('');
   const [portalFirebaseKey, setPortalFirebaseKey] = useState<string | null>(null);
+
+  // Onboarding link state
+  const [onboardingToken, setOnboardingToken] = useState<string | null>(null);
+  const [onboardingStatus, setOnboardingStatus] = useState<'none' | 'pending' | 'submitted'>('none');
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Master list state
   const [projects, setProjects] = useState<string[]>([]);
@@ -242,6 +248,22 @@ export default function EmployeeForm() {
       }
     };
     checkPortal();
+  }, [isEdit, id]);
+
+  // Load existing onboarding token for this employee (edit mode)
+  useEffect(() => {
+    if (!isEdit || !id) return;
+    const checkOnboarding = async () => {
+      const snap = await get(ref(database, 'hr/employeeOnboarding'));
+      if (!snap.exists()) return;
+      const all = snap.val() as Record<string, { employeeKey: string; status: string }>;
+      const entry = Object.entries(all).find(([, v]) => v.employeeKey === id);
+      if (entry) {
+        setOnboardingToken(entry[0]);
+        setOnboardingStatus(entry[1].status as 'pending' | 'submitted');
+      }
+    };
+    checkOnboarding();
   }, [isEdit, id]);
 
   useEffect(() => {
@@ -548,6 +570,62 @@ export default function EmployeeForm() {
     return map[tab]?.some((f) => !!errors[f]) || false;
   };
 
+  const generateOnboardingLink = async (employeeKey: string) => {
+    if (!formData.email) {
+      toast({ title: 'Employee email is required to generate a link', variant: 'destructive' });
+      return;
+    }
+    setGeneratingLink(true);
+    try {
+      const token = crypto.randomUUID();
+      await set(ref(database, `hr/employeeOnboarding/${token}`), {
+        employeeKey,
+        email: formData.email,
+        status: 'pending',
+        createdAt: Date.now(),
+      });
+      setOnboardingToken(token);
+      setOnboardingStatus('pending');
+      toast({ title: 'Onboarding link generated!' });
+    } catch {
+      toast({ title: 'Failed to generate link', variant: 'destructive' });
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  const getOnboardingUrl = (token: string) =>
+    `${window.location.origin}/onboarding/${token}`;
+
+  const copyLink = async (token: string) => {
+    await navigator.clipboard.writeText(getOnboardingUrl(token));
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const loadSubmittedData = async () => {
+    if (!onboardingToken) return;
+    const snap = await get(ref(database, `hr/employeeOnboarding/${onboardingToken}`));
+    if (!snap.exists()) return;
+    const data = snap.val();
+    if (data.submittedData) {
+      setFormData(prev => ({
+        ...prev,
+        name: data.submittedData.name || prev.name,
+        phone: data.submittedData.phone || prev.phone,
+        email: data.submittedData.email || prev.email,
+        bloodGroup: data.submittedData.bloodGroup || prev.bloodGroup,
+        department: data.submittedData.department || prev.department,
+        role: data.submittedData.role || prev.role,
+        officeType: data.submittedData.officeType || prev.officeType,
+        joiningDate: data.submittedData.joiningDate || prev.joiningDate,
+        landline: data.submittedData.landline || prev.landline,
+        referredBy: data.submittedData.referredBy || prev.referredBy,
+      }));
+      toast({ title: 'Employee data loaded from submitted form' });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -612,6 +690,19 @@ export default function EmployeeForm() {
             role: 'employee',
             name: formData.name,
           });
+        }
+
+        // Auto-generate onboarding link when portal access is enabled
+        if (portalEnabled && formData.email && firebaseKey) {
+          const token = crypto.randomUUID();
+          await set(ref(database, `hr/employeeOnboarding/${token}`), {
+            employeeKey: firebaseKey,
+            email: formData.email,
+            status: 'pending',
+            createdAt: Date.now(),
+          });
+          setOnboardingToken(token);
+          setOnboardingStatus('pending');
         }
 
         toast({ title: 'Employee created successfully' });
@@ -862,27 +953,114 @@ export default function EmployeeForm() {
                     Enable Employee Portal Login
                   </Label>
                 </div>
+
                 {portalEnabled && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <Label>Login Email</Label>
-                      <Input
-                        value={formData.email || ''}
-                        disabled
-                        className="bg-gray-50"
-                        placeholder="Uses employee email"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Employee will log in with their email</p>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <Label>Login Email</Label>
+                        <Input
+                          value={formData.email || ''}
+                          disabled
+                          className="bg-gray-50"
+                          placeholder="Uses employee email"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Employee will log in with their email</p>
+                      </div>
+                      <div>
+                        <Label>Portal Password</Label>
+                        <Input
+                          type="text"
+                          value={portalPassword}
+                          onChange={(e) => setPortalPassword(e.target.value)}
+                          placeholder="Set initial password"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Employee can change this after login</p>
+                      </div>
                     </div>
-                    <div>
-                      <Label>Portal Password</Label>
-                      <Input
-                        type="text"
-                        value={portalPassword}
-                        onChange={(e) => setPortalPassword(e.target.value)}
-                        placeholder="Set initial password"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Employee can change this after login</p>
+
+                    {/* Onboarding Form Link */}
+                    <div className="border rounded-lg p-4 bg-blue-50/60 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                          <Link className="h-4 w-4" />
+                          Employee Self-Onboarding Form
+                        </div>
+                        {onboardingStatus === 'submitted' && (
+                          <Badge className="bg-green-100 text-green-800 border-green-300">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Submitted
+                          </Badge>
+                        )}
+                        {onboardingStatus === 'pending' && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        Generate a unique link and share it with the employee. They fill in their own details which auto-populate this form.
+                      </p>
+
+                      {onboardingToken ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={getOnboardingUrl(onboardingToken)}
+                              readOnly
+                              className="text-xs bg-white font-mono"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyLink(onboardingToken)}
+                              className="shrink-0"
+                            >
+                              {linkCopied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                            <a
+                              href={`mailto:${formData.email}?subject=Complete Your Employee Onboarding&body=Hi ${formData.name || 'there'},%0D%0A%0D%0APlease complete your employee onboarding by filling in the form at the link below:%0D%0A%0D%0A${encodeURIComponent(getOnboardingUrl(onboardingToken))}%0D%0A%0D%0AThis link is unique to you. Please submit your details at the earliest.%0D%0A%0D%0ARegards,%0D%0AHR Team`}
+                              className="shrink-0"
+                              title="Send via email client"
+                            >
+                              <Button type="button" size="sm" variant="outline">
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </a>
+                          </div>
+
+                          {onboardingStatus === 'submitted' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="w-full bg-green-600 hover:bg-green-700"
+                              onClick={loadSubmittedData}
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Load Submitted Data into Form
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        isEdit ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                            onClick={() => id && generateOnboardingLink(id)}
+                            disabled={generatingLink || !formData.email}
+                          >
+                            {generatingLink ? 'Generating...' : 'Generate Onboarding Link'}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground bg-white rounded p-2 border">
+                            Save the employee first — an onboarding link will be generated automatically when Portal Access is enabled.
+                          </p>
+                        )
+                      )}
                     </div>
                   </div>
                 )}

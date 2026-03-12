@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Download, ArrowLeft, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -78,6 +79,7 @@ export default function CreateInvoice() {
   const [eWayBillNo, setEWayBillNo] = useState("")
   const [eWayBillDate, setEWayBillDate] = useState("")
   const [remarks, setRemarks] = useState("")
+  const [includeDeliveryChallan, setIncludeDeliveryChallan] = useState(false)
 
   // ✅ FIXED: Tax States - Initialize with DEFAULT values
   const [applyCGST, setApplyCGST] = useState(true)
@@ -208,6 +210,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
         setEWayBillNo(inv.eWayBillNo || "")
         setEWayBillDate(inv.eWayBillDate || "")
         setRemarks(inv.remarks || "")
+        setIncludeDeliveryChallan(inv.includeDeliveryChallan || false)
 
         setApplyCGST(inv.applyCGST ?? true)
         setApplySGST(inv.applySGST ?? true)
@@ -724,6 +727,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
       eWayBillNo,
       eWayBillDate,
       remarks,
+      includeDeliveryChallan,
       applyCGST,
       applySGST,
       applyIGST,
@@ -914,6 +918,18 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
             </Button>
           </div>
         </div>
+
+        {/* DEBUG: Show Delivery Challan State */}
+        {includeDeliveryChallan && (
+          <div className="mb-4 p-3 bg-green-50 border-2 border-green-500 rounded-lg">
+            <p className="text-green-800 font-bold text-sm">
+              ✓ Delivery Challan is ENABLED - It will appear at the bottom of the preview
+            </p>
+            <p className="text-xs text-green-700 mt-1">
+              Line Items Count: {lineItems.length}
+            </p>
+          </div>
+        )}
 
         {/* TABS */}
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="mb-4">
@@ -1284,6 +1300,23 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
             <div>
               <Label>Remarks</Label>
               <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-4 pb-2 bg-blue-50 p-3 rounded-lg border-2 border-blue-200">
+              <Checkbox
+                id="includeDeliveryChallan"
+                checked={includeDeliveryChallan}
+                onCheckedChange={(checked) => {
+                  console.log("Delivery Challan checkbox changed:", checked);
+                  setIncludeDeliveryChallan(checked as boolean);
+                }}
+              />
+              <label
+                htmlFor="includeDeliveryChallan"
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-blue-900"
+              >
+                ✓ Include Delivery Challan in Invoice (will be printed below the invoice)
+              </label>
             </div>
           </CardContent>
         </Card>
@@ -2766,6 +2799,684 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
             </div>
           ))}
         </div>
+
+        {/* DELIVERY CHALLAN SECTION - Only if includeDeliveryChallan is true */}
+        {includeDeliveryChallan && (
+          <>
+            {/* Visual separator */}
+            <div style={{
+              width: "100%",
+              padding: "20px",
+              background: "#fef3c7",
+              border: "2px dashed #f59e0b",
+              marginTop: "40px",
+              marginBottom: "20px",
+              textAlign: "center",
+              fontSize: "16px",
+              fontWeight: "bold",
+              color: "#92400e"
+            }}>
+              📦 DELIVERY CHALLAN SECTION BELOW
+            </div>
+
+            <div
+              style={{
+                width: "1122px",
+                minHeight: "794px",
+                background: "#ffffff",
+                margin: "20px auto 0",
+                padding: 0,
+                fontFamily: "Arial, sans-serif",
+                boxSizing: "border-box",
+                pageBreakBefore: "always",
+              }}
+            >
+            <div
+              style={{
+                border: "2px solid #000",
+                margin: 0,
+                padding: 0,
+                background: "#ffffff",
+              }}
+            >
+              {/* HEADER */}
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "8px 12px",
+                  borderBottom: "2px solid #000",
+                  background: "#ffffff",
+                }}
+              >
+                <img
+                  src={fas}
+                  alt="FAS"
+                  style={{ width: "50px", height: "auto", margin: "0 auto 4px", display: "block" }}
+                />
+                <h1
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 900,
+                    margin: "2px 0",
+                    color: "#000",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Fluoro Automation Seals Pvt Ltd
+                </h1>
+                <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
+                  3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+                </p>
+                <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
+                  Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+                </p>
+              </div>
+
+              {/* COMPANY DETAILS BAR */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  padding: "4px 12px",
+                  background: "#ffffff",
+                  borderBottom: "2px solid #000",
+                  fontSize: "8px",
+                  fontWeight: 700,
+                }}
+              >
+                <div>GSTIN: 33AAECF2716M1ZO</div>
+                <div>CIN: U25209TN2020PTC138498</div>
+                <div>PAN: AAECF2716M</div>
+              </div>
+
+              {/* DELIVERY CHALLAN TITLE */}
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "6px 0",
+                  borderBottom: "2px solid #000",
+                  background: "#ffffff",
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 900,
+                    margin: 0,
+                    letterSpacing: "1px",
+                  }}
+                >
+                  DELIVERY CHALLAN
+                </h2>
+              </div>
+
+              {/* DC DETAILS */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  borderBottom: "2px solid #000",
+                  background: "#ffffff",
+                }}
+              >
+                <div
+                  style={{
+                    borderRight: "2px solid #000",
+                    padding: "4px 8px",
+                    fontSize: "7.5px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            width: "55%",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 700,
+                          }}
+                        >
+                          DC No (Invoice Ref):
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {invoiceNumber}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Date:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {invoiceDate ? format(new Date(invoiceDate), "dd-MM-yyyy") : ""}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Transporter Name:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {transporterName || ""}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          E-Way Bill No:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {eWayBillNo || ""}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "7.5px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            width: "55%",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Transportation Mode:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {transportMode || ""}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Vehicle No.:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            borderBottom: "1px solid #dee2e6",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {vehicleNo || "NA"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Place of Supply:
+                        </td>
+                        <td
+                          style={{
+                            padding: "3px 4px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {placeOfSupply || ""}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Consignor / Consignee */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  borderBottom: "2px solid #000",
+                  background: "#ffffff",
+                }}
+              >
+                <div
+                  style={{
+                    borderRight: "2px solid #000",
+                    padding: "6px 8px",
+                    fontSize: "7.5px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <div
+                    style={{
+                      textAlign: "center",
+                      borderBottom: "1px solid #999",
+                      marginBottom: "4px",
+                      paddingBottom: "2px",
+                    }}
+                  >
+                    <strong style={{ fontSize: "8.5px", fontWeight: 800 }}>
+                      Details of Consignor (Billed to)
+                    </strong>
+                  </div>
+                  <p
+                    style={{
+                      fontWeight: 800,
+                      fontSize: "9px",
+                      margin: "3px 0",
+                      color: "#000",
+                    }}
+                  >
+                    Fluoro Automation Seals Pvt Ltd
+                  </p>
+                  <pre
+                    style={{
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "7.5px",
+                      whiteSpace: "pre-wrap",
+                      margin: "2px 0",
+                      fontWeight: 600,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {"3/180, Rajiv Gandhi Road\nMettukuppam\nChennai, Tamil Nadu - 600097\nIndia"}
+                  </pre>
+                  <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                    <strong>State Code:</strong> 33
+                  </p>
+                  <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                    <strong>GSTIN:</strong> 33AAECF2716M1ZO
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: "6px 8px",
+                    fontSize: "7.5px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <div
+                    style={{
+                      textAlign: "center",
+                      borderBottom: "1px solid #999",
+                      marginBottom: "4px",
+                      paddingBottom: "2px",
+                    }}
+                  >
+                    <strong style={{ fontSize: "8.5px", fontWeight: 800 }}>
+                      Details of Consignee (Shipped to)
+                    </strong>
+                  </div>
+                  <p
+                    style={{
+                      fontWeight: 800,
+                      fontSize: "9px",
+                      margin: "3px 0",
+                      color: "#000",
+                    }}
+                  >
+                    {selectedOrder?.customerName || selectedCustomer?.companyName || ""}
+                  </p>
+                  <pre
+                    style={{
+                      fontFamily: "Arial, sans-serif",
+                      fontSize: "7.5px",
+                      whiteSpace: "pre-wrap",
+                      margin: "2px 0",
+                      fontWeight: 600,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {formatAddress(shippingAddress)}
+                  </pre>
+                  <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                    <strong>State Code:</strong>{" "}
+                    {(selectedOrder?.customerGST || selectedCustomer?.gst || "").substring(0, 2)}
+                  </p>
+                  <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                    <strong>GSTIN:</strong> {selectedOrder?.customerGST || selectedCustomer?.gst || ""}
+                  </p>
+                </div>
+              </div>
+
+              {/* ITEMS TABLE */}
+              <div
+                style={{
+                  padding: 0,
+                  background: "#ffffff",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "7px",
+                    background: "#ffffff",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "35%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "32%" }} />
+                  </colgroup>
+                  <thead style={{ background: "#e5e7eb" }}>
+                    <tr>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        S.No
+                      </th>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 3px",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                          textAlign: "left",
+                        }}
+                      >
+                        Part Code / Description
+                      </th>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        HSN/SAC
+                      </th>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Quantity
+                      </th>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        UOM
+                      </th>
+                      <th
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "left",
+                          fontWeight: 900,
+                          fontSize: "7px",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Remarks
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItems.map((item: any, i: number) => (
+                      <tr key={i} style={{ background: "#ffffff" }}>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 2px",
+                            textAlign: "center",
+                            fontWeight: 700,
+                            fontSize: "7px",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {i + 1}
+                        </td>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 3px",
+                            fontSize: "6.5px",
+                            lineHeight: 1.3,
+                            verticalAlign: "top",
+                            wordWrap: "break-word",
+                            overflowWrap: "break-word",
+                            whiteSpace: "normal",
+                            maxWidth: "0",
+                          }}
+                        >
+                          <div style={{ fontWeight: 800, marginBottom: "1px" }}>
+                            {item.partCode}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "6px",
+                              color: "#333",
+                              fontWeight: 600,
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {item.description}
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 2px",
+                            textAlign: "center",
+                            fontWeight: 700,
+                            fontSize: "7px",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {item.hsnCode}
+                        </td>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 2px",
+                            textAlign: "center",
+                            fontWeight: 800,
+                            fontSize: "7px",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {item.invoicedQty}
+                        </td>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 2px",
+                            textAlign: "center",
+                            fontWeight: 700,
+                            fontSize: "7px",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {item.uom || "NOS"}
+                        </td>
+                        <td
+                          style={{
+                            border: "1.5px solid #000",
+                            padding: "4px 3px",
+                            fontSize: "7px",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {remarks || ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* REMARKS */}
+              {remarks && (
+                <div
+                  style={{
+                    borderTop: "2px solid #000",
+                    padding: "6px 8px",
+                    fontSize: "8px",
+                    fontWeight: 700,
+                    background: "#ffffff",
+                  }}
+                >
+                  <strong style={{ fontWeight: 900 }}>Remarks:</strong> {remarks}
+                </div>
+              )}
+
+              {/* SIGNATURE */}
+              <div
+                style={{
+                  borderTop: "2px solid #000",
+                  padding: "8px 8px",
+                  fontSize: "7px",
+                  background: "#ffffff",
+                }}
+              >
+                <p
+                  style={{
+                    margin: "12px 0 3px",
+                    textAlign: "center",
+                    fontSize: "8px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Received the above goods in good condition
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    marginTop: "30px",
+                  }}
+                >
+                  <div style={{ textAlign: "left" }}>
+                    <p
+                      style={{
+                        fontSize: "8px",
+                        fontWeight: 900,
+                        borderTop: "1px solid #000",
+                        display: "inline-block",
+                        paddingTop: "3px",
+                        paddingRight: "40px",
+                      }}
+                    >
+                      Receiver's Signature
+                    </p>
+                    <div style={{ marginTop: "10px" }}>
+                      <p style={{ fontSize: "7px", fontWeight: 700, margin: "2px 0" }}>Name:</p>
+                      <p style={{ fontSize: "7px", fontWeight: 700, margin: "2px 0" }}>Date:</p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p
+                      style={{
+                        fontSize: "8px",
+                        fontWeight: 900,
+                        marginBottom: "15px",
+                      }}
+                    >
+                      For Fluoro Automation Seals Pvt Ltd
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "8px",
+                        fontWeight: 900,
+                        borderTop: "1px solid #000",
+                        display: "inline-block",
+                        paddingTop: "3px",
+                        paddingRight: "40px",
+                      }}
+                    >
+                      Authorized Signatory
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </>
+        )}
       </div>
     </div>
   )

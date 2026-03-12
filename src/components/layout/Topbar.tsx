@@ -8,7 +8,7 @@ export const Topbar = () => {
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
-    <header className="h-14 bg-card/80 backdrop-blur-md border-b border-border/60 px-5 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+    <header className="h-12 bg-card/80 backdrop-blur-md border-b border-border/60 px-3 md:px-5 flex items-center gap-2 md:gap-3 sticky top-0 z-20 shadow-sm shrink-0">
 
       {/* Search */}
       <div className={`relative flex-1 max-w-xs transition-all duration-200 ease-smooth ${searchFocused ? 'max-w-sm' : ''}`}>

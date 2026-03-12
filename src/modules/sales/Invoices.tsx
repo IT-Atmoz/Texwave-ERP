@@ -1395,6 +1395,665 @@ const numberToWords = (num: number): string => {
           </div>
         </div>
       </div>
+
+      {/* DELIVERY CHALLAN SECTION - Only if includeDeliveryChallan is true */}
+      {invoice.includeDeliveryChallan && (
+        <div
+          style={{
+            pageBreakBefore: "always",
+            width: "1122px",
+            minHeight: "794px",
+            background: "#ffffff",
+            margin: "20px auto 0",
+            padding: 0,
+            fontFamily: "Arial, sans-serif",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              border: "2px solid #000",
+              margin: 0,
+              padding: 0,
+              background: "#ffffff",
+            }}
+          >
+            {/* HEADER */}
+            <div
+              style={{
+                textAlign: "center",
+                padding: "8px 12px",
+                borderBottom: "2px solid #000",
+                background: "#ffffff",
+              }}
+            >
+              <img
+                src={fas}
+                alt="FAS"
+                style={{ width: "50px", height: "auto", margin: "0 auto 4px", display: "block" }}
+              />
+              <h1
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 900,
+                  margin: "2px 0",
+                  color: "#000",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Fluoro Automation Seals Pvt Ltd
+              </h1>
+              <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
+                3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+              </p>
+              <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
+                Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+              </p>
+            </div>
+
+            {/* COMPANY DETAILS BAR */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-around",
+                padding: "4px 12px",
+                background: "#ffffff",
+                borderBottom: "2px solid #000",
+                fontSize: "8px",
+                fontWeight: 700,
+              }}
+            >
+              <div>GSTIN: 33AAECF2716M1ZO</div>
+              <div>CIN: U25209TN2020PTC138498</div>
+              <div>PAN: AAECF2716M</div>
+            </div>
+
+            {/* DELIVERY CHALLAN TITLE */}
+            <div
+              style={{
+                textAlign: "center",
+                padding: "6px 0",
+                borderBottom: "2px solid #000",
+                background: "#ffffff",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 900,
+                  margin: 0,
+                  letterSpacing: "1px",
+                }}
+              >
+                DELIVERY CHALLAN
+              </h2>
+            </div>
+
+            {/* DC DETAILS */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                borderBottom: "2px solid #000",
+                background: "#ffffff",
+              }}
+            >
+              <div
+                style={{
+                  borderRight: "2px solid #000",
+                  padding: "4px 8px",
+                  fontSize: "7.5px",
+                  background: "#ffffff",
+                }}
+              >
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          width: "55%",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 700,
+                        }}
+                      >
+                        DC No (Invoice Ref):
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.invoiceNumber}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Date:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.invoiceDate ? format(new Date(invoice.invoiceDate), "dd-MM-yyyy") : ""}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Transporter Name:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.transporterName || ""}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        E-Way Bill No:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.eWayBillNo || ""}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "7.5px",
+                  background: "#ffffff",
+                }}
+              >
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          width: "55%",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Transportation Mode:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.transportMode || ""}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Vehicle No.:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          borderBottom: "1px solid #dee2e6",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.vehicleNo || "NA"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Place of Supply:
+                      </td>
+                      <td
+                        style={{
+                          padding: "3px 4px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {invoice.placeOfSupply || ""}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Billed to / Shipped to */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                borderBottom: "2px solid #000",
+                background: "#ffffff",
+              }}
+            >
+              <div
+                style={{
+                  borderRight: "2px solid #000",
+                  padding: "6px 8px",
+                  fontSize: "7.5px",
+                  background: "#ffffff",
+                }}
+              >
+                <div
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid #999",
+                    marginBottom: "4px",
+                    paddingBottom: "2px",
+                  }}
+                >
+                  <strong style={{ fontSize: "8.5px", fontWeight: 800 }}>
+                    Details of Consignor (Billed to)
+                  </strong>
+                </div>
+                <p
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "9px",
+                    margin: "3px 0",
+                    color: "#000",
+                  }}
+                >
+                  Fluoro Automation Seals Pvt Ltd
+                </p>
+                <pre
+                  style={{
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "7.5px",
+                    whiteSpace: "pre-wrap",
+                    margin: "2px 0",
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  3/180, Rajiv Gandhi Road{"\n"}Mettukuppam{"\n"}Chennai, Tamil Nadu - 600097{"\n"}India
+                </pre>
+                <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                  <strong>State Code:</strong> 33
+                </p>
+                <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                  <strong>GSTIN:</strong> 33AAECF2716M1ZO
+                </p>
+              </div>
+
+              <div
+                style={{
+                  padding: "6px 8px",
+                  fontSize: "7.5px",
+                  background: "#ffffff",
+                }}
+              >
+                <div
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid #999",
+                    marginBottom: "4px",
+                    paddingBottom: "2px",
+                  }}
+                >
+                  <strong style={{ fontSize: "8.5px", fontWeight: 800 }}>
+                    Details of Consignee (Shipped to)
+                  </strong>
+                </div>
+                <p
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "9px",
+                    margin: "3px 0",
+                    color: "#000",
+                  }}
+                >
+                  {invoice.customerName}
+                </p>
+                <pre
+                  style={{
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "7.5px",
+                    whiteSpace: "pre-wrap",
+                    margin: "2px 0",
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {formatAddress(invoice.shippingAddress)}
+                </pre>
+                <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                  <strong>State Code:</strong> {(invoice.customerGST || "").substring(0, 2)}
+                </p>
+                <p style={{ margin: "2px 0", fontWeight: 700 }}>
+                  <strong>GSTIN:</strong> {invoice.customerGST}
+                </p>
+              </div>
+            </div>
+
+            {/* ITEMS TABLE */}
+            <div
+              style={{
+                padding: 0,
+                background: "#ffffff",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "7px",
+                  background: "#ffffff",
+                  tableLayout: "fixed",
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "35%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "32%" }} />
+                </colgroup>
+                <thead style={{ background: "#e5e7eb" }}>
+                  <tr>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 2px",
+                        textAlign: "center",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      S.No
+                    </th>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 3px",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                        textAlign: "left",
+                      }}
+                    >
+                      Part Code / Description
+                    </th>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 2px",
+                        textAlign: "center",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      HSN/SAC
+                    </th>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 2px",
+                        textAlign: "center",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      Quantity
+                    </th>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 2px",
+                        textAlign: "center",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      UOM
+                    </th>
+                    <th
+                      style={{
+                        border: "1.5px solid #000",
+                        padding: "4px 2px",
+                        textAlign: "left",
+                        fontWeight: 900,
+                        fontSize: "7px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      Remarks
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(invoice.lineItems || []).map((item: any, i: number) => (
+                    <tr key={i} style={{ background: "#ffffff" }}>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontSize: "7px",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {i + 1}
+                      </td>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 3px",
+                          fontSize: "6.5px",
+                          lineHeight: 1.3,
+                          verticalAlign: "top",
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                          whiteSpace: "normal",
+                          maxWidth: "0",
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, marginBottom: "1px" }}>
+                          {item.partCode || item.productCode}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "6px",
+                            color: "#333",
+                            fontWeight: 600,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {item.description || item.productName}
+                        </div>
+                      </td>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontSize: "7px",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {item.hsnCode}
+                      </td>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 800,
+                          fontSize: "7px",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {item.qty || item.invoicedQty}
+                      </td>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 2px",
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontSize: "7px",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {item.uom || "NOS"}
+                      </td>
+                      <td
+                        style={{
+                          border: "1.5px solid #000",
+                          padding: "4px 3px",
+                          fontSize: "7px",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {invoice.remarks || ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* REMARKS */}
+            {invoice.remarks && (
+              <div
+                style={{
+                  borderTop: "2px solid #000",
+                  padding: "6px 8px",
+                  fontSize: "8px",
+                  fontWeight: 700,
+                  background: "#ffffff",
+                }}
+              >
+                <strong style={{ fontWeight: 900 }}>Remarks:</strong> {invoice.remarks}
+              </div>
+            )}
+
+            {/* SIGNATURE */}
+            <div
+              style={{
+                borderTop: "2px solid #000",
+                padding: "8px 8px",
+                fontSize: "7px",
+                background: "#ffffff",
+              }}
+            >
+              <p
+                style={{
+                  margin: "12px 0 3px",
+                  textAlign: "center",
+                  fontSize: "8px",
+                  fontWeight: 700,
+                }}
+              >
+                Received the above goods in good condition
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  marginTop: "30px",
+                }}
+              >
+                <div style={{ textAlign: "left" }}>
+                  <p
+                    style={{
+                      fontSize: "8px",
+                      fontWeight: 900,
+                      borderTop: "1px solid #000",
+                      display: "inline-block",
+                      paddingTop: "3px",
+                      paddingRight: "40px",
+                    }}
+                  >
+                    Receiver's Signature
+                  </p>
+                  <div style={{ marginTop: "10px" }}>
+                    <p style={{ fontSize: "7px", fontWeight: 700, margin: "2px 0" }}>Name:</p>
+                    <p style={{ fontSize: "7px", fontWeight: 700, margin: "2px 0" }}>Date:</p>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p
+                    style={{
+                      fontSize: "8px",
+                      fontWeight: 900,
+                      marginBottom: "15px",
+                    }}
+                  >
+                    For Fluoro Automation Seals Pvt Ltd
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "8px",
+                      fontWeight: 900,
+                      borderTop: "1px solid #000",
+                      display: "inline-block",
+                      paddingTop: "3px",
+                      paddingRight: "40px",
+                    }}
+                  >
+                    Authorized Signatory
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1514,6 +2173,7 @@ const monthOptions = [
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([])
+  const [deliveryChallans, setDeliveryChallans] = useState<any[]>([])
   const [filteredInvoices, setFilteredInvoices] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all")
@@ -1521,13 +2181,15 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>("")
+  const [documentType, setDocumentType] = useState<string>("invoices")
   const navigate = useNavigate()
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [invoiceData, customerData] = await Promise.all([
+        const [invoiceData, challanData, customerData] = await Promise.all([
           getAllRecords("sales/invoices"),
+          getAllRecords("sales/deliveryChallans"),
           getAllRecords("sales/customers"),
         ])
 
@@ -1535,6 +2197,12 @@ export default function InvoicesPage() {
           (a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0)
         )
         setInvoices(sortedInvoices)
+
+        const sortedChallans = (challanData as any[]).sort(
+          (a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0)
+        )
+        setDeliveryChallans(sortedChallans)
+
         setFilteredInvoices(sortedInvoices)
 
         const sortedCustomers = (customerData as any[]).sort((a: any, b: any) =>
@@ -1552,7 +2220,15 @@ export default function InvoicesPage() {
   }, [])
 
   useEffect(() => {
-    let result = [...invoices]
+    let result: any[] = []
+
+    if (documentType === "invoices") {
+      result = [...invoices]
+    } else if (documentType === "challans") {
+      result = [...deliveryChallans]
+    } else {
+      result = [...invoices, ...deliveryChallans].sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+    }
 
     if (selectedCustomerId !== "all") {
       result = result.filter((inv: any) => inv.customerId === selectedCustomerId)
@@ -1561,7 +2237,7 @@ export default function InvoicesPage() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       result = result.filter((inv: any) => {
-        const invoiceNumber = (inv.invoiceNumber || "").toLowerCase()
+        const invoiceNumber = (inv.invoiceNumber || inv.dcNumber || "").toLowerCase()
         const customerName = (inv.customerName || "").toLowerCase()
         return invoiceNumber.startsWith(query) || customerName.startsWith(query)
       })
@@ -1569,13 +2245,13 @@ export default function InvoicesPage() {
 
     if (selectedDate) {
       result = result.filter((inv: any) => {
-        const invDate = new Date(inv.invoiceDate).toISOString().split("T")[0]
+        const invDate = new Date(inv.invoiceDate || inv.dcDate).toISOString().split("T")[0]
         return invDate === selectedDate
       })
     }
 
     setFilteredInvoices(result)
-  }, [selectedCustomerId, searchQuery, invoices, selectedDate])
+  }, [selectedCustomerId, searchQuery, invoices, deliveryChallans, selectedDate, documentType])
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this invoice permanently?")) return
@@ -1607,26 +2283,39 @@ export default function InvoicesPage() {
     setSearchQuery("")
     setSelectedCustomerId("all")
     setSelectedDate("")
+    setDocumentType("invoices")
   }
 
-  const hasActiveFilters = searchQuery || selectedCustomerId !== "all" || selectedDate
+  const hasActiveFilters = searchQuery || selectedCustomerId !== "all" || selectedDate || documentType !== "invoices"
   const totalAmount = filteredInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-100 py-4 md:py-8">
+      <div className="w-full mx-auto px-2 md:px-4">
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900">GST Invoices</h1>
+            <h1 className="text-3xl font-bold text-blue-900">
+              {documentType === "invoices" ? "GST Invoices" : documentType === "challans" ? "Delivery Challans" : "Invoices & Delivery Challans"}
+            </h1>
             <p className="text-sm text-gray-600 mt-1">
-              {filteredInvoices.length} invoice{filteredInvoices.length !== 1 ? "s" : ""} · Total: ₹
-              {totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+              {filteredInvoices.length} {documentType === "challans" ? "challan" : "document"}{filteredInvoices.length !== 1 ? "s" : ""}
+              {documentType === "invoices" && ` · Total: ₹${totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
             </p>
           </div>
-          <Button onClick={() => navigate("/sales/invoices/create")}>
-            <Plus className="h-5 w-5 mr-2" />
-            Create New Invoice
-          </Button>
+          <div className="flex gap-2">
+            {(documentType === "invoices" || documentType === "all") && (
+              <Button onClick={() => navigate("/sales/invoices/create")}>
+                <Plus className="h-5 w-5 mr-2" />
+                Create Invoice
+              </Button>
+            )}
+            {(documentType === "challans" || documentType === "all") && (
+              <Button onClick={() => navigate("/sales/delivery-challans/create")} variant="outline">
+                <Plus className="h-5 w-5 mr-2" />
+                Create Delivery Challan
+              </Button>
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="list" className="w-full">
@@ -1645,12 +2334,26 @@ export default function InvoicesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-4 items-end flex-wrap">
+                  <div className="w-[200px]">
+                    <Label className="text-sm font-medium mb-2 block">Document Type</Label>
+                    <Select value={documentType} onValueChange={setDocumentType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="invoices">Invoices Only</SelectItem>
+                        <SelectItem value="challans">Delivery Challans Only</SelectItem>
+                        <SelectItem value="all">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="relative flex-1 min-w-[280px]">
                     <Label className="text-sm font-medium mb-2 block">Search</Label>
                     <Search className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
                     <Input
                       type="text"
-                      placeholder="Search by invoice number or customer name..."
+                      placeholder="Search by document number or customer name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10 pr-10"
@@ -1716,7 +2419,11 @@ export default function InvoicesPage() {
             {hasActiveFilters && (
               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-900 font-medium">
-                  Found {filteredInvoices.length} result{filteredInvoices.length !== 1 ? "s" : ""}
+                  Found {filteredInvoices.length} {
+                    documentType === "invoices" ? "invoice" :
+                    documentType === "challans" ? "delivery challan" :
+                    "document"
+                  }{filteredInvoices.length !== 1 ? "s" : ""}
                   {searchQuery && ` matching "${searchQuery}"`}
                   {selectedCustomerId !== "all" &&
                     ` for ${customers.find((c) => c.id === selectedCustomerId)?.companyName}`}
@@ -1727,7 +2434,9 @@ export default function InvoicesPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>All Generated Invoices</CardTitle>
+                <CardTitle>
+                  {documentType === "invoices" ? "All Generated Invoices" : documentType === "challans" ? "All Delivery Challans" : "All Documents"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -1743,7 +2452,11 @@ export default function InvoicesPage() {
                         </Button>
                       </>
                     ) : (
-                      <p>No invoices generated yet. Click "Create New Invoice" to get started.</p>
+                      <p>
+                        {documentType === "invoices" ? "No invoices generated yet. Click \"Create Invoice\" to get started." :
+                         documentType === "challans" ? "No delivery challans created yet. Click \"Create Delivery Challan\" to get started." :
+                         "No documents found. Create an invoice or delivery challan to get started."}
+                      </p>
                     )}
                   </div>
                 ) : (
@@ -1751,82 +2464,145 @@ export default function InvoicesPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Invoice No</TableHead>
+                          {documentType === "all" && <TableHead>Type</TableHead>}
+                          <TableHead>{documentType === "challans" ? "DC No" : "Doc No"}</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Customer</TableHead>
-                          <TableHead>Amount</TableHead>
+                          {documentType !== "challans" && <TableHead>Amount</TableHead>}
                           <TableHead>Status</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredInvoices.map((inv) => (
-                          <TableRow key={inv.id}>
-                            <TableCell className="font-mono font-semibold">
-                              {inv.invoiceNumber}
-                            </TableCell>
-                            <TableCell>{format(new Date(inv.invoiceDate), "dd-MM-yyyy")}</TableCell>
-                            <TableCell>{inv.customerName}</TableCell>
-                            <TableCell className="font-medium">
-                              ₹{Number(inv.grandTotal || 0).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                                Generated
-                              </span>
-                            </TableCell>
-                            <TableCell className="space-x-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleViewInvoice(inv)}
-                                title="View"
-                              >
-                                <Eye className="h-4 w-4 text-blue-600" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDuplicate(inv.id)}
-                                title="Duplicate"
-                              >
-                                <Copy className="h-4 w-4 text-blue-600" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => navigate(`/sales/invoices/edit/${inv.id}`)}
-                                title="Edit"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => navigate(`/sales/credit-notes/create?fromInvoice=${inv.id}`)}
-                                title="Create Credit Note"
-                              >
-                                <FileText className="h-4 w-4 text-purple-600" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => navigate(`/sales/payments-received/create?invoiceId=${inv.id}`)}
-                                title="Record Payment"
-                              >
-                                <CreditCard className="h-4 w-4 text-green-600" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(inv.id)}
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {filteredInvoices.map((doc) => {
+                          const isInvoice = !!doc.invoiceNumber
+                          const isChallan = !!doc.dcNumber
+                          return (
+                            <TableRow key={doc.id}>
+                              {documentType === "all" && (
+                                <TableCell>
+                                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${isInvoice ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}`}>
+                                    {isInvoice ? "Invoice" : "DC"}
+                                  </span>
+                                </TableCell>
+                              )}
+                              <TableCell className="font-mono font-semibold">
+                                {doc.invoiceNumber || doc.dcNumber}
+                              </TableCell>
+                              <TableCell>{format(new Date(doc.invoiceDate || doc.dcDate), "dd-MM-yyyy")}</TableCell>
+                              <TableCell>{doc.customerName}</TableCell>
+                              {documentType !== "challans" && isInvoice && (
+                                <TableCell className="font-medium">
+                                  ₹{Number(doc.grandTotal || 0).toFixed(2)}
+                                </TableCell>
+                              )}
+                              {documentType === "all" && isChallan && (
+                                <TableCell className="text-muted-foreground">—</TableCell>
+                              )}
+                              <TableCell>
+                                <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                                  isInvoice ? "bg-green-100 text-green-800" :
+                                  doc.status === "Delivered" ? "bg-green-100 text-green-800" :
+                                  doc.status === "Open" ? "bg-blue-100 text-blue-800" :
+                                  doc.status === "Invoiced" ? "bg-purple-100 text-purple-800" :
+                                  "bg-gray-100 text-gray-800"
+                                }`}>
+                                  {isInvoice ? "Generated" : doc.status}
+                                </span>
+                              </TableCell>
+                              <TableCell className="space-x-2">
+                                {isInvoice ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleViewInvoice(doc)}
+                                      title="View"
+                                    >
+                                      <Eye className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDuplicate(doc.id)}
+                                      title="Duplicate"
+                                    >
+                                      <Copy className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => navigate(`/sales/invoices/edit/${doc.id}`)}
+                                      title="Edit"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => navigate(`/sales/credit-notes/create?fromInvoice=${doc.id}`)}
+                                      title="Create Credit Note"
+                                    >
+                                      <FileText className="h-4 w-4 text-purple-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => navigate(`/sales/payments-received/create?invoiceId=${doc.id}`)}
+                                      title="Record Payment"
+                                    >
+                                      <CreditCard className="h-4 w-4 text-green-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDelete(doc.id)}
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => navigate(`/sales/delivery-challans/view/${doc.id}`)}
+                                      title="View"
+                                    >
+                                      <Eye className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => navigate(`/sales/delivery-challans/edit/${doc.id}`)}
+                                      title="Edit"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        if (confirm(`Delete delivery challan ${doc.dcNumber}?`)) {
+                                          deleteRecord("sales/deliveryChallans", doc.id)
+                                            .then(() => {
+                                              setDeliveryChallans(prev => prev.filter(d => d.id !== doc.id))
+                                              toast.success("Deleted")
+                                            })
+                                            .catch(() => toast.error("Failed to delete"))
+                                        }
+                                      }}
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>

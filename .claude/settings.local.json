@@ -6,7 +6,8 @@
       "WebFetch(domain:www.zoho.com)",
       "Bash(head:*)",
       "Bash(tail:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm install)"
     ]
   }
 }

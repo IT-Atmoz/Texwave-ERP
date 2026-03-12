@@ -39,7 +39,7 @@ const salesTabs = [
   },
   {
     id: 'quotations',
-    label: <span className="flex items-center gap-1"><FileText size={16} />Estimates</span>,
+    label: <span className="flex items-center gap-1"><FileText size={16} />Quotations</span>,
     path: '/sales/quotations',
   },
   {
@@ -48,13 +48,8 @@ const salesTabs = [
     path: '/sales/orders',
   },
   {
-    id: 'delivery-challans',
-    label: <span className="flex items-center gap-1"><Truck size={16} />Delivery Challans</span>,
-    path: '/sales/delivery-challans',
-  },
-  {
     id: 'invoices',
-    label: <span className="flex items-center gap-1"><Receipt size={16} />Invoices</span>,
+    label: <span className="flex items-center gap-1"><Receipt size={16} />Invoices & Delivery Challans</span>,
     path: '/sales/invoices',
   },
   {
@@ -96,7 +91,7 @@ export default function SalesLayout() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Sales</h1>
           <p className="text-muted-foreground mt-1">
-            Estimates, orders, invoices and payment management
+            Quotations, orders, invoices and payment management
           </p>
         </div>
 

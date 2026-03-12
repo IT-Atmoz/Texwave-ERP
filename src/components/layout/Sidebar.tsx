@@ -41,9 +41,9 @@ export const Sidebar = () => {
   return (
     <aside
       className={cn(
-        'h-screen bg-sidebar border-r border-sidebar-border flex flex-col sticky top-0 z-30',
+        'h-screen bg-sidebar border-r border-sidebar-border flex flex-col sticky top-0 z-30 shrink-0',
         'transition-[width] duration-300 ease-smooth',
-        collapsed ? 'w-[68px]' : 'w-64',
+        collapsed ? 'w-[60px]' : 'w-56',
       )}
     >
       {/* ── Header ── */}
