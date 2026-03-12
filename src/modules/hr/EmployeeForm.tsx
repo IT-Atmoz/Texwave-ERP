@@ -94,7 +94,6 @@ export default function EmployeeForm() {
 
   // Portal Access state
   const [portalEnabled, setPortalEnabled] = useState(false);
-  const [portalPassword, setPortalPassword] = useState('');
   const [portalFirebaseKey, setPortalFirebaseKey] = useState<string | null>(null);
 
   // Onboarding link state
@@ -244,7 +243,6 @@ export default function EmployeeForm() {
       if (snap.exists()) {
         setPortalEnabled(true);
         setPortalFirebaseKey(id);
-        setPortalPassword(snap.val().password || '');
       }
     };
     checkPortal();
@@ -571,22 +569,17 @@ export default function EmployeeForm() {
   };
 
   const generateOnboardingLink = async (employeeKey: string) => {
-    if (!formData.email) {
-      toast({ title: 'Employee email is required to generate a link', variant: 'destructive' });
-      return;
-    }
     setGeneratingLink(true);
     try {
       const token = crypto.randomUUID();
       await set(ref(database, `hr/employeeOnboarding/${token}`), {
         employeeKey,
-        email: formData.email,
         status: 'pending',
         createdAt: Date.now(),
       });
       setOnboardingToken(token);
       setOnboardingStatus('pending');
-      toast({ title: 'Onboarding link generated!' });
+      toast({ title: 'Onboarding link generated! Share it with the employee.' });
     } catch {
       toast({ title: 'Failed to generate link', variant: 'destructive' });
     } finally {
@@ -649,17 +642,6 @@ export default function EmployeeForm() {
           updatedAt: Date.now(),
         });
 
-        // Save/update portal access
-        if (portalEnabled && portalPassword && formData.email) {
-          await set(ref(database, `users/${id}`), {
-            email: formData.email,
-            password: portalPassword,
-            employeeId: formData.employeeId || id,
-            role: 'employee',
-            name: formData.name,
-          });
-        }
-
         if (revision) {
           toast({
             title: 'Employee updated with salary revision',
@@ -681,23 +663,11 @@ export default function EmployeeForm() {
           updatedAt: Date.now(),
         });
 
-        // Save portal access for new employee
-        if (portalEnabled && portalPassword && formData.email && firebaseKey) {
-          await set(ref(database, `users/${firebaseKey}`), {
-            email: formData.email,
-            password: portalPassword,
-            employeeId: empId,
-            role: 'employee',
-            name: formData.name,
-          });
-        }
-
         // Auto-generate onboarding link when portal access is enabled
-        if (portalEnabled && formData.email && firebaseKey) {
+        if (portalEnabled && firebaseKey) {
           const token = crypto.randomUUID();
           await set(ref(database, `hr/employeeOnboarding/${token}`), {
             employeeKey: firebaseKey,
-            email: formData.email,
             status: 'pending',
             createdAt: Date.now(),
           });
@@ -955,113 +925,88 @@ export default function EmployeeForm() {
                 </div>
 
                 {portalEnabled && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                      <div>
-                        <Label>Login Email</Label>
-                        <Input
-                          value={formData.email || ''}
-                          disabled
-                          className="bg-gray-50"
-                          placeholder="Uses employee email"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Employee will log in with their email</p>
+                  <div className="border rounded-lg p-4 bg-blue-50/60 space-y-3 mt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                        <Link className="h-4 w-4" />
+                        Employee Self-Onboarding Form
                       </div>
-                      <div>
-                        <Label>Portal Password</Label>
-                        <Input
-                          type="text"
-                          value={portalPassword}
-                          onChange={(e) => setPortalPassword(e.target.value)}
-                          placeholder="Set initial password"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Employee can change this after login</p>
-                      </div>
+                      {onboardingStatus === 'submitted' && (
+                        <Badge className="bg-green-100 text-green-800 border-green-300">
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Submitted
+                        </Badge>
+                      )}
+                      {onboardingStatus === 'pending' && (
+                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                          Pending
+                        </Badge>
+                      )}
                     </div>
 
-                    {/* Onboarding Form Link */}
-                    <div className="border rounded-lg p-4 bg-blue-50/60 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
-                          <Link className="h-4 w-4" />
-                          Employee Self-Onboarding Form
-                        </div>
-                        {onboardingStatus === 'submitted' && (
-                          <Badge className="bg-green-100 text-green-800 border-green-300">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> Submitted
-                          </Badge>
-                        )}
-                        {onboardingStatus === 'pending' && (
-                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
+                    <p className="text-xs text-muted-foreground">
+                      Share this link with the employee. They fill in their own details and set their portal password — everything auto-populates here automatically.
+                    </p>
 
-                      <p className="text-xs text-muted-foreground">
-                        Generate a unique link and share it with the employee. They fill in their own details which auto-populate this form.
-                      </p>
-
-                      {onboardingToken ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={getOnboardingUrl(onboardingToken)}
-                              readOnly
-                              className="text-xs bg-white font-mono"
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyLink(onboardingToken)}
-                              className="shrink-0"
-                            >
-                              {linkCopied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                            </Button>
-                            <a
-                              href={`mailto:${formData.email}?subject=Complete Your Employee Onboarding&body=Hi ${formData.name || 'there'},%0D%0A%0D%0APlease complete your employee onboarding by filling in the form at the link below:%0D%0A%0D%0A${encodeURIComponent(getOnboardingUrl(onboardingToken))}%0D%0A%0D%0AThis link is unique to you. Please submit your details at the earliest.%0D%0A%0D%0ARegards,%0D%0AHR Team`}
-                              className="shrink-0"
-                              title="Send via email client"
-                            >
-                              <Button type="button" size="sm" variant="outline">
-                                <Send className="h-4 w-4" />
-                              </Button>
-                            </a>
-                          </div>
-
-                          {onboardingStatus === 'submitted' && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="default"
-                              className="w-full bg-green-600 hover:bg-green-700"
-                              onClick={loadSubmittedData}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Load Submitted Data into Form
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        isEdit ? (
+                    {onboardingToken ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={getOnboardingUrl(onboardingToken)}
+                            readOnly
+                            className="text-xs bg-white font-mono"
+                          />
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
-                            onClick={() => id && generateOnboardingLink(id)}
-                            disabled={generatingLink || !formData.email}
+                            onClick={() => copyLink(onboardingToken)}
+                            className="shrink-0"
+                            title="Copy link"
                           >
-                            {generatingLink ? 'Generating...' : 'Generate Onboarding Link'}
+                            {linkCopied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                           </Button>
-                        ) : (
-                          <p className="text-xs text-muted-foreground bg-white rounded p-2 border">
-                            Save the employee first — an onboarding link will be generated automatically when Portal Access is enabled.
-                          </p>
-                        )
-                      )}
-                    </div>
+                          <a
+                            href={`mailto:${formData.email || ''}?subject=Complete Your Employee Onboarding&body=Hi ${formData.name || 'there'},%0D%0A%0D%0APlease complete your employee onboarding by clicking the link below:%0D%0A%0D%0A${encodeURIComponent(getOnboardingUrl(onboardingToken))}%0D%0A%0D%0AFill in your personal details and set your portal login password. Submit the form and your information will be recorded automatically.%0D%0A%0D%0ARegards,%0D%0AHR Team`}
+                            className="shrink-0"
+                            title="Send via email"
+                          >
+                            <Button type="button" size="sm" variant="outline">
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </a>
+                        </div>
+
+                        {onboardingStatus === 'submitted' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            onClick={loadSubmittedData}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Load Submitted Data into Form
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      isEdit ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                          onClick={() => id && generateOnboardingLink(id)}
+                          disabled={generatingLink}
+                        >
+                          {generatingLink ? 'Generating...' : 'Generate Onboarding Link'}
+                        </Button>
+                      ) : (
+                        <p className="text-xs text-muted-foreground bg-white rounded p-2 border">
+                          Save the employee first — an onboarding link will be generated automatically.
+                        </p>
+                      )
+                    )}
                   </div>
                 )}
               </CardContent>

@@ -1,7 +1,7 @@
 // src/modules/hr/EmployeeOnboardingForm.tsx
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ref, get, update } from 'firebase/database';
+import { ref, get, update, set } from 'firebase/database';
 import { database } from '@/services/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,23 +9,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle, Loader2, ClipboardList } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, ClipboardList, Eye, EyeOff } from 'lucide-react';
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const officeLocations = ['OMR', 'Anna Nagar', 'Coimbatore', 'Remote'];
 
 interface OnboardingRecord {
   employeeKey: string;
-  email: string;
   status: 'pending' | 'submitted';
   createdAt: number;
-  submittedAt?: number;
 }
 
 interface FormState {
   name: string;
   phone: string;
   email: string;
+  password: string;
+  confirmPassword: string;
   bloodGroup: string;
   department: string;
   role: string;
@@ -34,6 +34,8 @@ interface FormState {
   landline: string;
   referredBy: string;
 }
+
+type FormErrors = Partial<Record<keyof FormState, string>>;
 
 export default function EmployeeOnboardingForm() {
   const { token } = useParams<{ token: string }>();
@@ -44,11 +46,15 @@ export default function EmployeeOnboardingForm() {
   const [pageError, setPageError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const [form, setForm] = useState<FormState>({
     name: '',
     phone: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     bloodGroup: '',
     department: '',
     role: '',
@@ -58,7 +64,7 @@ export default function EmployeeOnboardingForm() {
     referredBy: '',
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     const load = async () => {
@@ -76,8 +82,6 @@ export default function EmployeeOnboardingForm() {
 
         if (data.status === 'submitted') {
           setSubmitted(true);
-        } else {
-          setForm(f => ({ ...f, email: data.email || '' }));
         }
 
         if (deptsSnap.exists()) {
@@ -94,10 +98,12 @@ export default function EmployeeOnboardingForm() {
   }, [token]);
 
   const validate = (): boolean => {
-    const e: Partial<Record<keyof FormState, string>> = {};
+    const e: FormErrors = {};
     if (!form.name.trim()) e.name = 'Full name is required';
     if (!/^\d{10}$/.test(form.phone)) e.phone = 'Phone must be exactly 10 digits';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Valid email is required';
+    if (form.password.length < 6) e.password = 'Password must be at least 6 characters';
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     if (!form.bloodGroup) e.bloodGroup = 'Select blood group';
     if (!form.department) e.department = 'Select department';
     if (!form.role.trim()) e.role = 'Designation is required';
@@ -118,6 +124,7 @@ export default function EmployeeOnboardingForm() {
 
     setSubmitting(true);
     try {
+      // Update the employee record with submitted details
       await update(ref(database, `hr/employees/${record.employeeKey}`), {
         name: form.name.trim(),
         phone: form.phone.trim(),
@@ -133,10 +140,31 @@ export default function EmployeeOnboardingForm() {
         updatedAt: Date.now(),
       });
 
+      // Create portal login account — employee sets their own email + password
+      await set(ref(database, `users/${record.employeeKey}`), {
+        email: form.email.trim(),
+        password: form.password,
+        role: 'employee',
+        name: form.name.trim(),
+        createdAt: Date.now(),
+      });
+
+      // Mark onboarding token as submitted
       await update(ref(database, `hr/employeeOnboarding/${token}`), {
         status: 'submitted',
         submittedAt: Date.now(),
-        submittedData: { ...form },
+        submittedData: {
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          bloodGroup: form.bloodGroup,
+          department: form.department,
+          role: form.role.trim(),
+          officeType: form.officeType,
+          joiningDate: form.joiningDate,
+          landline: form.landline.trim(),
+          referredBy: form.referredBy.trim(),
+        },
       });
 
       setSubmitted(true);
@@ -147,6 +175,7 @@ export default function EmployeeOnboardingForm() {
     }
   };
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -155,6 +184,7 @@ export default function EmployeeOnboardingForm() {
     );
   }
 
+  // ── Error ────────────────────────────────────────────────────────────────
   if (pageError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -169,6 +199,7 @@ export default function EmployeeOnboardingForm() {
     );
   }
 
+  // ── Already submitted ────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -177,7 +208,8 @@ export default function EmployeeOnboardingForm() {
             <CheckCircle2 className="h-14 w-14 text-green-500 mx-auto" />
             <h2 className="text-xl font-bold text-gray-800">Details Submitted Successfully!</h2>
             <p className="text-sm text-muted-foreground">
-              Your information has been received. HR will review and complete your employee profile.
+              Your information has been received and your portal account is ready.
+              You can now log in to the Employee Portal using your email and the password you set.
             </p>
           </CardContent>
         </Card>
@@ -185,9 +217,11 @@ export default function EmployeeOnboardingForm() {
     );
   }
 
+  // ── Form ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="bg-blue-600 text-white p-3 rounded-full">
@@ -196,7 +230,7 @@ export default function EmployeeOnboardingForm() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Employee Onboarding Form</h1>
           <p className="text-sm text-muted-foreground">
-            Please fill in your details accurately. This information will be used to set up your employee profile.
+            Fill in your details below. Your information will be recorded automatically and your Employee Portal account will be created.
           </p>
         </div>
 
@@ -206,6 +240,8 @@ export default function EmployeeOnboardingForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Full Name */}
               <div className="space-y-1">
                 <Label>Full Name <span className="text-red-500">*</span></Label>
                 <Input
@@ -217,6 +253,7 @@ export default function EmployeeOnboardingForm() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Phone */}
                 <div className="space-y-1">
                   <Label>Phone Number <span className="text-red-500">*</span></Label>
                   <Input
@@ -228,6 +265,7 @@ export default function EmployeeOnboardingForm() {
                   {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
                 </div>
 
+                {/* Email */}
                 <div className="space-y-1">
                   <Label>Email <span className="text-red-500">*</span></Label>
                   <Input
@@ -239,27 +277,23 @@ export default function EmployeeOnboardingForm() {
                   {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                 </div>
 
+                {/* Blood Group */}
                 <div className="space-y-1">
                   <Label>Blood Group <span className="text-red-500">*</span></Label>
                   <Select value={form.bloodGroup} onValueChange={v => setField('bloodGroup', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select blood group" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select blood group" /></SelectTrigger>
                     <SelectContent>
-                      {bloodGroups.map(bg => (
-                        <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                      ))}
+                      {bloodGroups.map(bg => <SelectItem key={bg} value={bg}>{bg}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {errors.bloodGroup && <p className="text-xs text-red-500">{errors.bloodGroup}</p>}
                 </div>
 
+                {/* Department */}
                 <div className="space-y-1">
                   <Label>Department <span className="text-red-500">*</span></Label>
                   <Select value={form.department} onValueChange={v => setField('department', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                     <SelectContent>
                       {(departments.length > 0
                         ? departments
@@ -270,6 +304,7 @@ export default function EmployeeOnboardingForm() {
                   {errors.department && <p className="text-xs text-red-500">{errors.department}</p>}
                 </div>
 
+                {/* Designation */}
                 <div className="space-y-1">
                   <Label>Designation <span className="text-red-500">*</span></Label>
                   <Input
@@ -280,21 +315,19 @@ export default function EmployeeOnboardingForm() {
                   {errors.role && <p className="text-xs text-red-500">{errors.role}</p>}
                 </div>
 
+                {/* Office Location */}
                 <div className="space-y-1">
                   <Label>Office Location <span className="text-red-500">*</span></Label>
                   <Select value={form.officeType} onValueChange={v => setField('officeType', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select office location" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select office location" /></SelectTrigger>
                     <SelectContent>
-                      {officeLocations.map(l => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
+                      {officeLocations.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {errors.officeType && <p className="text-xs text-red-500">{errors.officeType}</p>}
                 </div>
 
+                {/* Joining Date */}
                 <div className="space-y-1">
                   <Label>Joining Date <span className="text-red-500">*</span></Label>
                   <Input
@@ -305,6 +338,7 @@ export default function EmployeeOnboardingForm() {
                   {errors.joiningDate && <p className="text-xs text-red-500">{errors.joiningDate}</p>}
                 </div>
 
+                {/* Landline */}
                 <div className="space-y-1">
                   <Label>Landline</Label>
                   <Input
@@ -315,6 +349,7 @@ export default function EmployeeOnboardingForm() {
                 </div>
               </div>
 
+              {/* Referred By */}
               <div className="space-y-1">
                 <Label>Referred By</Label>
                 <Input
@@ -322,6 +357,58 @@ export default function EmployeeOnboardingForm() {
                   onChange={e => setField('referredBy', e.target.value)}
                   placeholder="Name of the person who referred you"
                 />
+              </div>
+
+              {/* Portal Password Section */}
+              <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+                <p className="text-sm font-medium text-gray-700">Set Your Employee Portal Password</p>
+                <p className="text-xs text-muted-foreground">
+                  You will use your email and this password to log in to the Employee Portal.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Password <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={e => setField('password', e.target.value)}
+                        placeholder="Min. 6 characters"
+                        className="pr-9"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowPassword(v => !v)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Confirm Password <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirm ? 'text' : 'password'}
+                        value={form.confirmPassword}
+                        onChange={e => setField('confirmPassword', e.target.value)}
+                        placeholder="Re-enter your password"
+                        className="pr-9"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => setShowConfirm(v => !v)}
+                      >
+                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                  </div>
+                </div>
               </div>
 
               <Alert>
