@@ -31,20 +31,37 @@ export default function MyDocuments() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.employeeId) return;
+    if (!user) return;
     const load = async () => {
-      const snap = await get(ref(database, `hr/employees/${user.employeeId}`));
-      if (snap.exists()) {
-        const data = snap.val();
+      let empData: any = null;
+
+      // Prefer direct lookup via firebaseKey (most reliable)
+      if (user.firebaseKey) {
+        const snap = await get(ref(database, `hr/employees/${user.firebaseKey}`));
+        if (snap.exists()) empData = snap.val();
+      }
+
+      // Fallback: search all employees by display employeeId
+      if (!empData && user.employeeId) {
+        const allSnap = await get(ref(database, 'hr/employees'));
+        if (allSnap.exists()) {
+          const found = Object.values(allSnap.val()).find(
+            (e: any) => e.employeeId === user.employeeId
+          );
+          if (found) empData = found;
+        }
+      }
+
+      if (empData) {
         const docs: DocumentItem[] = DOC_FIELDS
-          .filter((f) => data[f.key])
-          .map((f) => ({ label: f.label, key: f.key, url: data[f.key], isImage: f.isImage }));
+          .filter((f) => empData[f.key])
+          .map((f) => ({ label: f.label, key: f.key, url: empData[f.key], isImage: f.isImage }));
         setDocuments(docs);
       }
       setLoading(false);
     };
     load();
-  }, [user?.employeeId]);
+  }, [user?.firebaseKey, user?.employeeId]);
 
   if (loading) {
     return <div className="text-center py-12 text-muted-foreground">Loading documents...</div>;

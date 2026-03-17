@@ -79,13 +79,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const usersData = snapshot.val();
         for (const key of Object.keys(usersData)) {
           const record = usersData[key];
-          if (record.email === identifier && record.password === password) {
+          if ((record.email === identifier || record.username === identifier) && record.password === password) {
             const u: User = {
-              username: identifier,
+              username: record.username || identifier,
               role: 'employee',
               name: record.name,
-              employeeId: record.employeeId,
-              email: record.email,
+              employeeId: record.employeeId,  // display ID e.g. EMP0001
+              firebaseKey: key,               // Firebase push key for direct lookups
+              email: record.email || '',
             };
             setUser(u);
             localStorage.setItem('erp_user', JSON.stringify(u));

@@ -4,7 +4,8 @@ export interface User {
   username: string;
   role: UserRole;
   name: string;
-  employeeId?: string;
+  employeeId?: string;   // display ID e.g. "EMP0001"
+  firebaseKey?: string;  // Firebase push key (same as hr/employees/{key})
   email?: string;
 }
 

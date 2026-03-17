@@ -140,12 +140,19 @@ export default function EmployeeOnboardingForm() {
         updatedAt: Date.now(),
       });
 
+      // Fetch the employee's display ID (e.g. EMP0001) for the session
+      const empSnap = await get(ref(database, `hr/employees/${record.employeeKey}`));
+      const displayEmployeeId: string = empSnap.exists()
+        ? (empSnap.val().employeeId ?? record.employeeKey)
+        : record.employeeKey;
+
       // Create portal login account — employee sets their own email + password
       await set(ref(database, `users/${record.employeeKey}`), {
         email: form.email.trim(),
         password: form.password,
         role: 'employee',
         name: form.name.trim(),
+        employeeId: displayEmployeeId,
         createdAt: Date.now(),
       });
 

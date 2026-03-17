@@ -140,9 +140,22 @@ export default function MyTimesheet() {
     if (!user?.employeeId) return;
 
     // Fetch employee record for reportingTo
-    get(ref(database, `hr/employees/${user.employeeId}`)).then(snap => {
-      if (snap.exists()) setReportingTo(snap.val().reportingTo ?? '');
-    });
+    // Use firebaseKey for direct lookup; fall back to searching by display employeeId
+    const fetchReportingTo = async () => {
+      if (user.firebaseKey) {
+        const snap = await get(ref(database, `hr/employees/${user.firebaseKey}`));
+        if (snap.exists()) { setReportingTo(snap.val().reportingTo ?? ''); return; }
+      }
+      // Fallback search
+      const allSnap = await get(ref(database, 'hr/employees'));
+      if (allSnap.exists()) {
+        const found: any = Object.values(allSnap.val()).find(
+          (e: any) => e.employeeId === user.employeeId
+        );
+        if (found) setReportingTo(found.reportingTo ?? '');
+      }
+    };
+    fetchReportingTo();
 
     // Live logs
     const logsRef = ref(database, `hr/timeLogs/${user.employeeId}`);

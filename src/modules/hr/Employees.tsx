@@ -7,13 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { deleteRecord, getAllRecords, updateRecord } from '@/services/firebase';
 import { Employee } from '@/types';
 
 const DEPARTMENTS = ['All Departments'] as const;
 
 export default function EmployeesList() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filtered, setFiltered] = useState<Employee[]>([]);
   const [search, setSearch] = useState('');
@@ -197,12 +198,10 @@ export default function EmployeesList() {
           <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
           <p className="text-muted-foreground">Manage team members • Total: {employees.length}</p>
         </div>
-        <Link to="new">
-          <Button size="lg">
-            <Plus className="h-5 w-5 mr-2" />
-            Add Employee
-          </Button>
-        </Link>
+        <Button size="lg" onClick={() => navigate('new')}>
+          <Plus className="h-5 w-5 mr-2" />
+          Add Employee
+        </Button>
       </div>
 
       {/* Filters Bar */}
@@ -365,11 +364,9 @@ export default function EmployeesList() {
 
                         <TableCell>
                           <div className="flex justify-center gap-3">
-                            <Link to={`edit/${emp.id}`}>
-                              <Button size="sm" variant="outline" className="h-9 w-9 p-0">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                            <Button size="sm" variant="outline" className="h-9 w-9 p-0" onClick={() => navigate(`edit/${emp.id}`)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                             {isAdmin && (
                               <Button
                                 size="sm"

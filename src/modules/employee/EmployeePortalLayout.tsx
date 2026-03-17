@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard, MapPin, Clock, User, FolderOpen, LogOut, FileText,
-  Calendar, CalendarDays,
+  Calendar, CalendarDays, TicketCheck,
 } from 'lucide-react';
 
 const navGroups = [
@@ -30,8 +30,9 @@ const navGroups = [
   {
     label: 'MY INFO',
     items: [
-      { path: '/employee/profile',   label: 'My Profile', icon: User },
-      { path: '/employee/documents', label: 'Documents',  icon: FolderOpen },
+      { path: '/employee/profile',   label: 'My Profile',   icon: User },
+      { path: '/employee/documents', label: 'Documents',    icon: FolderOpen },
+      { path: '/employee/tickets',   label: 'Raise Ticket', icon: TicketCheck },
     ],
   },
 ];

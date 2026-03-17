@@ -111,6 +111,7 @@ import ProjectsMaster from "./modules/master/ProjectsMaster";
 import PrivilegeManager from "./modules/hr/PrivilegeManager";
 import OrgChart from "./modules/hr/OrgChart";
 import WorkLogs from "./modules/hr/WorkLogs";
+import AdminTickets from "./modules/hr/AdminTickets";
 
 // Employee Portal
 import EmployeePortalLayout from "./modules/employee/EmployeePortalLayout";
@@ -121,6 +122,7 @@ import MyProfile from "./modules/employee/MyProfile";
 import MyDocuments from "./modules/employee/MyDocuments";
 import MyAttendance from "./modules/employee/MyAttendance";
 import MyLeaves from "./modules/employee/MyLeaves";
+import RaiseTicket from "./modules/employee/RaiseTicket";
 
 // Other
 import FMP from "./modules/hr/FMP";
@@ -615,6 +617,7 @@ function App() {
                 <Route path="privileges" element={<PrivilegeManager />} />
                 <Route path="org-chart" element={<OrgChart />} />
                 <Route path="time-logs" element={<WorkLogs />} />
+                <Route path="tickets" element={<AdminTickets />} />
               </Route>
 
               <Route
@@ -660,6 +663,7 @@ function App() {
                 <Route path="timesheet" element={<MyTimesheet />} />
                 <Route path="profile" element={<MyProfile />} />
                 <Route path="documents" element={<MyDocuments />} />
+                <Route path="tickets" element={<RaiseTicket />} />
               </Route>
 
               {/* Stub Routes */}

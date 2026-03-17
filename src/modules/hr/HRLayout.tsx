@@ -23,6 +23,7 @@ import {
   BriefcaseBusiness,
   GitBranch,
   ClipboardList,
+  TicketCheck,
 } from 'lucide-react';
 
 export default function HRLayout() {
@@ -77,6 +78,12 @@ export default function HRLayout() {
       items: [
         { path: '/hr/documents', label: 'Employee Documents', icon: FolderOpen },
         { path: '/hr/other-documents', label: 'Other Documents', icon: FileStack },
+      ],
+    },
+    {
+      label: 'SUPPORT',
+      items: [
+        { path: '/hr/tickets', label: 'Employee Tickets', icon: TicketCheck },
       ],
     },
     ...(user?.role === 'admin' ? [{

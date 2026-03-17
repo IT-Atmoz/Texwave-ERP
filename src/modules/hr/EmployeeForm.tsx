@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, FileText, X, AlertCircle, GraduationCap, Download, Eye,
+  ArrowLeft, FileText, X, AlertCircle, GraduationCap, Download, Eye, EyeOff,
   Briefcase, User, CreditCard, AlertTriangle, Home, Droplet, Phone, MapPin,
   Calendar, Globe, Plus, Trash2, Building, Award, Lock, History, TrendingUp,
-  TrendingDown, Clock, Edit3, IndianRupee, CheckCircle2, Link, Copy, Send, RefreshCw
+  TrendingDown, Clock, Edit3, IndianRupee, CheckCircle2, Copy, Send, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,12 +95,10 @@ export default function EmployeeForm() {
   // Portal Access state
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalFirebaseKey, setPortalFirebaseKey] = useState<string | null>(null);
-
-  // Onboarding link state
-  const [onboardingToken, setOnboardingToken] = useState<string | null>(null);
-  const [onboardingStatus, setOnboardingStatus] = useState<'none' | 'pending' | 'submitted'>('none');
-  const [generatingLink, setGeneratingLink] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [portalUsername, setPortalUsername] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [showPortalPassword, setShowPortalPassword] = useState(false);
+  const [profileFilled, setProfileFilled] = useState(false);
 
   // Master list state
   const [projects, setProjects] = useState<string[]>([]);
@@ -243,26 +241,15 @@ export default function EmployeeForm() {
       if (snap.exists()) {
         setPortalEnabled(true);
         setPortalFirebaseKey(id);
+        const u = snap.val();
+        setPortalUsername(u.username || u.email || '');
+        setPortalPassword(u.password || '');
+        setProfileFilled(!!(u.profileFilled));
       }
     };
     checkPortal();
   }, [isEdit, id]);
 
-  // Load existing onboarding token for this employee (edit mode)
-  useEffect(() => {
-    if (!isEdit || !id) return;
-    const checkOnboarding = async () => {
-      const snap = await get(ref(database, 'hr/employeeOnboarding'));
-      if (!snap.exists()) return;
-      const all = snap.val() as Record<string, { employeeKey: string; status: string }>;
-      const entry = Object.entries(all).find(([, v]) => v.employeeKey === id);
-      if (entry) {
-        setOnboardingToken(entry[0]);
-        setOnboardingStatus(entry[1].status as 'pending' | 'submitted');
-      }
-    };
-    checkOnboarding();
-  }, [isEdit, id]);
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -525,30 +512,16 @@ export default function EmployeeForm() {
 
   const validateForm = (): boolean => {
     const e: Record<string, string> = {};
-    
-    if (!formData.name?.trim()) e.name = 'Name is required';
-    if (!validatePhone(formData.phone)) e.phone = '10 digits required';
-    if (!validateEmail(formData.email)) e.email = 'Valid email required';
-    if (!formData.bloodGroup) e.bloodGroup = 'Select blood group';
-    if (!formData.department) e.department = 'Select department';
-    if (!formData.role) e.role = 'Select designation';
-    if (!formData.joiningDate) e.joiningDate = 'Joining date required';
-    
-    if (isAdmin) {
-      if (!formData.salary?.monthlySalary || formData.salary.monthlySalary === 0) {
-        e.monthlySalary = 'Monthly salary required';
-      }
-    }
-    
-    if (!formData.profilePhoto) e.profilePhoto = 'Profile photo required';
-    if (!formData.resumeUrl) e.resumeUrl = 'Resume required';
-    if (!formData.aadhaarUrl) e.aadhaarUrl = 'Aadhaar card required';
-    if (!formData.panUrl) e.panUrl = 'PAN card required';
-    if (!validateAadhaar(formData.aadhaarNumber)) e.aadhaarNumber = 'Aadhaar must be 12 digits';
-    if (!validatePAN(formData.panNumber)) e.panNumber = 'Invalid PAN format';
-    if (!formData.bankName?.trim()) e.bankName = 'Bank name required';
-    if (!formData.bankAccountNo?.trim()) e.bankAccountNo = 'Account number required';
-    if (!validateIFSC(formData.bankIfsc)) e.bankIfsc = 'Invalid IFSC code';
+
+    // Only name is strictly required — employee fills remaining details via portal
+    if (!formData.name?.trim()) e.name = 'Employee name is required';
+
+    // Format-only validation (only when value is provided)
+    if (formData.phone && !validatePhone(formData.phone)) e.phone = '10 digits required';
+    if (formData.email && !validateEmail(formData.email)) e.email = 'Valid email required';
+    if (formData.aadhaarNumber && !validateAadhaar(formData.aadhaarNumber)) e.aadhaarNumber = 'Aadhaar must be 12 digits';
+    if (formData.panNumber && !validatePAN(formData.panNumber)) e.panNumber = 'Invalid PAN format';
+    if (formData.bankIfsc && !validateIFSC(formData.bankIfsc)) e.bankIfsc = 'Invalid IFSC code';
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -556,67 +529,53 @@ export default function EmployeeForm() {
 
   const hasErrorsInTab = (tab: string) => {
     const map: Record<string, string[]> = {
-      basic: ['name', 'phone', 'email', 'bloodGroup', 'department', 'role', 'joiningDate'],
-      personal: ['dob', 'gender'],
-      salary: isAdmin ? ['monthlySalary'] : [],
+      basic: ['name', 'phone', 'email'],
+      personal: [],
+      salary: [],
       experience: [],
-      documents: ['profilePhoto', 'resumeUrl', 'aadhaarUrl', 'panUrl'],
-      bank: ['aadhaarNumber', 'panNumber', 'bankName', 'bankAccountNo', 'bankIfsc'],
+      documents: [],
+      bank: ['aadhaarNumber', 'panNumber', 'bankIfsc'],
       address: [],
       emergency: [],
     };
     return map[tab]?.some((f) => !!errors[f]) || false;
   };
 
-  const generateOnboardingLink = async (employeeKey: string) => {
-    setGeneratingLink(true);
+  const copyPortalCredentials = async () => {
+    const loginUrl = `${window.location.origin}/login`;
+    const text = `Employee Portal Access\nLogin URL: ${loginUrl}\nUsername: ${portalUsername}\nPassword: ${portalPassword}`;
     try {
-      const token = crypto.randomUUID();
-      await set(ref(database, `hr/employeeOnboarding/${token}`), {
-        employeeKey,
-        status: 'pending',
-        createdAt: Date.now(),
-      });
-      setOnboardingToken(token);
-      setOnboardingStatus('pending');
-      toast({ title: 'Onboarding link generated! Share it with the employee.' });
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      toast({ title: 'Credentials copied!', description: 'Share these with the employee.' });
     } catch {
-      toast({ title: 'Failed to generate link', variant: 'destructive' });
-    } finally {
-      setGeneratingLink(false);
+      toast({ title: 'Copy failed — share credentials manually', variant: 'destructive' });
     }
   };
 
-  const getOnboardingUrl = (token: string) =>
-    `${window.location.origin}/onboarding/${token}`;
-
-  const copyLink = async (token: string) => {
-    await navigator.clipboard.writeText(getOnboardingUrl(token));
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
+  const shareCredentialsViaWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Hi ${formData.name || 'there'},\n\nYour Employee Portal access has been set up.\n\nLogin URL: ${window.location.origin}/login\nUsername: ${portalUsername}\nPassword: ${portalPassword}\n\nPlease log in and fill in your profile details.\n\nRegards,\nHR Team`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  const loadSubmittedData = async () => {
-    if (!onboardingToken) return;
-    const snap = await get(ref(database, `hr/employeeOnboarding/${onboardingToken}`));
-    if (!snap.exists()) return;
-    const data = snap.val();
-    if (data.submittedData) {
-      setFormData(prev => ({
-        ...prev,
-        name: data.submittedData.name || prev.name,
-        phone: data.submittedData.phone || prev.phone,
-        email: data.submittedData.email || prev.email,
-        bloodGroup: data.submittedData.bloodGroup || prev.bloodGroup,
-        department: data.submittedData.department || prev.department,
-        role: data.submittedData.role || prev.role,
-        officeType: data.submittedData.officeType || prev.officeType,
-        joiningDate: data.submittedData.joiningDate || prev.joiningDate,
-        landline: data.submittedData.landline || prev.landline,
-        referredBy: data.submittedData.referredBy || prev.referredBy,
-      }));
-      toast({ title: 'Employee data loaded from submitted form' });
-    }
+  const shareCredentialsViaEmail = () => {
+    const subject = encodeURIComponent('Your Employee Portal Access');
+    const body = encodeURIComponent(
+      `Hi ${formData.name || 'there'},\n\nYour Employee Portal access has been set up.\n\nLogin URL: ${window.location.origin}/login\nUsername: ${portalUsername}\nPassword: ${portalPassword}\n\nPlease log in and complete your profile details.\n\nRegards,\nHR Team`
+    );
+    window.open(`mailto:${formData.email || ''}?subject=${subject}&body=${body}`, '_self');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -629,6 +588,10 @@ export default function EmployeeForm() {
     }
 
     setLoading(true);
+
+    // Strip undefined values — Firebase rejects objects containing undefined
+    const cleanData = JSON.parse(JSON.stringify(formData));
+
     try {
       if (isEdit && id) {
         const revision = await createSalaryRevision();
@@ -637,10 +600,22 @@ export default function EmployeeForm() {
           : salaryRevisions;
 
         await updateRecord('hr/employees', id, {
-          ...formData,
+          ...cleanData,
           salaryRevisions: updatedRevisions,
           updatedAt: Date.now(),
         });
+
+        // Save/update portal access credentials
+        if (portalEnabled && portalUsername && portalPassword && id) {
+          await set(ref(database, `users/${id}`), {
+            username: portalUsername,
+            password: portalPassword,
+            role: 'employee',
+            name: formData.name || '',
+            employeeId: formData.employeeId || id,
+            email: formData.email || '',
+          });
+        }
 
         if (revision) {
           toast({
@@ -655,7 +630,7 @@ export default function EmployeeForm() {
         const count = (await getAllRecords('hr/employees')).length + 1;
         const empId = `EMP${String(count).padStart(4, '0')}`;
         const firebaseKey = await createRecord('hr/employees', {
-          ...formData,
+          ...cleanData,
           employeeId: empId,
           status: 'active',
           salaryRevisions: [],
@@ -663,23 +638,24 @@ export default function EmployeeForm() {
           updatedAt: Date.now(),
         });
 
-        // Auto-generate onboarding link when portal access is enabled
-        if (portalEnabled && firebaseKey) {
-          const token = crypto.randomUUID();
-          await set(ref(database, `hr/employeeOnboarding/${token}`), {
-            employeeKey: firebaseKey,
-            status: 'pending',
-            createdAt: Date.now(),
+        // Save portal access credentials set by admin
+        if (portalEnabled && portalUsername && portalPassword && firebaseKey) {
+          await set(ref(database, `users/${firebaseKey}`), {
+            username: portalUsername,
+            password: portalPassword,
+            role: 'employee',
+            name: formData.name || '',
+            employeeId: empId,
+            email: formData.email || '',
           });
-          setOnboardingToken(token);
-          setOnboardingStatus('pending');
         }
 
         toast({ title: 'Employee created successfully' });
         navigate('/hr/employees');
       }
-    } catch {
-      toast({ title: 'Failed to save', variant: 'destructive' });
+    } catch (err) {
+      console.error('Employee save error:', err);
+      toast({ title: 'Failed to save', description: String(err), variant: 'destructive' });
     } finally {
       setLoading(false);
       setRevisionReason('');
@@ -925,87 +901,93 @@ export default function EmployeeForm() {
                 </div>
 
                 {portalEnabled && (
-                  <div className="border rounded-lg p-4 bg-blue-50/60 space-y-3 mt-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
-                        <Link className="h-4 w-4" />
-                        Employee Self-Onboarding Form
+                  <div className="space-y-4 mt-2">
+                    {/* Credentials admin sets */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Username</Label>
+                        <Input
+                          value={portalUsername}
+                          onChange={(e) => setPortalUsername(e.target.value)}
+                          placeholder="e.g. emp.john or EMP001"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Employee uses this to log in</p>
                       </div>
-                      {onboardingStatus === 'submitted' && (
-                        <Badge className="bg-green-100 text-green-800 border-green-300">
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Submitted
-                        </Badge>
-                      )}
-                      {onboardingStatus === 'pending' && (
-                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                          Pending
-                        </Badge>
-                      )}
+                      <div>
+                        <Label>Password</Label>
+                        <div className="relative mt-1">
+                          <Input
+                            type={showPortalPassword ? 'text' : 'password'}
+                            value={portalPassword}
+                            onChange={(e) => setPortalPassword(e.target.value)}
+                            placeholder="Set initial password"
+                            className="pr-9"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            onClick={() => setShowPortalPassword(v => !v)}
+                          >
+                            {showPortalPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Employee can update their profile after login</p>
+                      </div>
                     </div>
 
-                    <p className="text-xs text-muted-foreground">
-                      Share this link with the employee. They fill in their own details and set their portal password — everything auto-populates here automatically.
-                    </p>
-
-                    {onboardingToken ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={getOnboardingUrl(onboardingToken)}
-                            readOnly
-                            className="text-xs bg-white font-mono"
-                          />
+                    {/* Share credentials */}
+                    {portalUsername && portalPassword && (
+                      <div className="border rounded-lg p-3 bg-blue-50/60 space-y-2">
+                        <p className="text-xs font-medium text-blue-800">Share these credentials with the employee:</p>
+                        <div className="text-xs bg-white border border-blue-200 rounded p-2 font-mono space-y-0.5">
+                          <div><span className="text-gray-500">Login URL: </span><span className="text-blue-700">{window.location.origin}/login</span></div>
+                          <div><span className="text-gray-500">Username: </span><span className="font-semibold">{portalUsername}</span></div>
+                          <div><span className="text-gray-500">Password: </span><span className="font-semibold">{portalPassword}</span></div>
+                        </div>
+                        <div className="flex gap-2">
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={() => copyLink(onboardingToken)}
-                            className="shrink-0"
-                            title="Copy link"
+                            className="flex-1 border-gray-300 hover:bg-white"
+                            onClick={copyPortalCredentials}
                           >
-                            {linkCopied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            <Copy className="h-3.5 w-3.5 mr-1.5" />
+                            Copy Credentials
                           </Button>
-                          <a
-                            href={`mailto:${formData.email || ''}?subject=Complete Your Employee Onboarding&body=Hi ${formData.name || 'there'},%0D%0A%0D%0APlease complete your employee onboarding by clicking the link below:%0D%0A%0D%0A${encodeURIComponent(getOnboardingUrl(onboardingToken))}%0D%0A%0D%0AFill in your personal details and set your portal login password. Submit the form and your information will be recorded automatically.%0D%0A%0D%0ARegards,%0D%0AHR Team`}
-                            className="shrink-0"
-                            title="Send via email"
-                          >
-                            <Button type="button" size="sm" variant="outline">
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          </a>
-                        </div>
-
-                        {onboardingStatus === 'submitted' && (
                           <Button
                             type="button"
                             size="sm"
-                            variant="default"
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            onClick={loadSubmittedData}
+                            variant="outline"
+                            className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={shareCredentialsViaEmail}
                           >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Load Submitted Data into Form
+                            <Send className="h-3.5 w-3.5 mr-1.5" />
+                            Send via Email
                           </Button>
-                        )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-green-300 text-green-700 hover:bg-green-50"
+                            onClick={shareCredentialsViaWhatsApp}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                            WhatsApp
+                          </Button>
+                        </div>
                       </div>
-                    ) : (
-                      isEdit ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
-                          onClick={() => id && generateOnboardingLink(id)}
-                          disabled={generatingLink}
-                        >
-                          {generatingLink ? 'Generating...' : 'Generate Onboarding Link'}
-                        </Button>
-                      ) : (
-                        <p className="text-xs text-muted-foreground bg-white rounded p-2 border">
-                          Save the employee first — an onboarding link will be generated automatically.
-                        </p>
-                      )
+                    )}
+
+                    {/* Profile fill status */}
+                    {isEdit && (
+                      <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${profileFilled ? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>
+                        {profileFilled
+                          ? <><CheckCircle2 className="h-3.5 w-3.5" /> Employee has filled their profile details</>
+                          : <><AlertCircle className="h-3.5 w-3.5" /> Employee has not yet filled their profile details</>
+                        }
+                      </div>
                     )}
                   </div>
                 )}
