@@ -112,6 +112,9 @@ import PrivilegeManager from "./modules/hr/PrivilegeManager";
 import OrgChart from "./modules/hr/OrgChart";
 import WorkLogs from "./modules/hr/WorkLogs";
 import AdminTickets from "./modules/hr/AdminTickets";
+import ExpenseApprovals from "./modules/hr/ExpenseApprovals";
+import ExitRequests from "./modules/hr/ExitRequests";
+import TaskAssignment from "./modules/hr/TaskAssignment";
 
 // Employee Portal
 import EmployeePortalLayout from "./modules/employee/EmployeePortalLayout";
@@ -123,6 +126,9 @@ import MyDocuments from "./modules/employee/MyDocuments";
 import MyAttendance from "./modules/employee/MyAttendance";
 import MyLeaves from "./modules/employee/MyLeaves";
 import RaiseTicket from "./modules/employee/RaiseTicket";
+import MyExpenses from "./modules/employee/MyExpenses";
+import ExitRequest from "./modules/employee/ExitRequest";
+import MyTasks from "./modules/employee/MyTasks";
 
 // Other
 import FMP from "./modules/hr/FMP";
@@ -618,6 +624,9 @@ function App() {
                 <Route path="org-chart" element={<OrgChart />} />
                 <Route path="time-logs" element={<WorkLogs />} />
                 <Route path="tickets" element={<AdminTickets />} />
+                <Route path="expense-approvals" element={<ExpenseApprovals />} />
+                <Route path="exit-requests" element={<ExitRequests />} />
+                <Route path="tasks" element={<TaskAssignment />} />
               </Route>
 
               <Route
@@ -664,6 +673,9 @@ function App() {
                 <Route path="profile" element={<MyProfile />} />
                 <Route path="documents" element={<MyDocuments />} />
                 <Route path="tickets" element={<RaiseTicket />} />
+                <Route path="expenses" element={<MyExpenses />} />
+                <Route path="exit" element={<ExitRequest />} />
+                <Route path="tasks" element={<MyTasks />} />
               </Route>
 
               {/* Stub Routes */}

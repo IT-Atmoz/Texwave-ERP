@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { database } from '@/services/firebase';
 import { ref, onValue, update } from 'firebase/database';
+import { sendNotification } from '@/services/notifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,14 +49,25 @@ export default function AdminTickets() {
   }, []);
 
   const handleUpdate = async (id: string, status: TicketStatus) => {
+    const ticket = tickets.find(t => t.id === id);
     setUpdating(id);
     try {
       const updates: any = { status };
-      if (replyText[id]?.trim()) updates.adminReply = replyText[id].trim();
+      const reply = replyText[id]?.trim();
+      if (reply) updates.adminReply = reply;
       if (status === 'resolved' || status === 'closed') updates.resolvedAt = Date.now();
       await update(ref(database, `hr/tickets/${id}`), updates);
       setReplyText(prev => { const n = { ...prev }; delete n[id]; return n; });
       toast({ title: 'Ticket updated' });
+      // Notify employee
+      if (ticket) {
+        await sendNotification(
+          ticket.employeeId,
+          `Ticket ${status === 'resolved' ? 'Resolved' : 'Updated'}: ${ticket.subject}`,
+          reply ? `HR replied: ${reply}` : `Your ticket status changed to ${status.replace('_', ' ')}.`,
+          'ticket',
+        );
+      }
     } catch {
       toast({ title: 'Failed to update ticket', variant: 'destructive' });
     } finally {

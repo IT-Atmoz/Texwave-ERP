@@ -1,9 +1,10 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/components/NotificationBell';
 import {
-  LayoutDashboard, MapPin, Clock, User, FolderOpen, LogOut, FileText,
-  Calendar, CalendarDays, TicketCheck,
+  LayoutDashboard, MapPin, Clock, User, FolderOpen, LogOut,
+  Calendar, CalendarDays, TicketCheck, Receipt, DoorOpen, ClipboardList,
 } from 'lucide-react';
 
 const navGroups = [
@@ -28,20 +29,33 @@ const navGroups = [
     ],
   },
   {
+    label: 'TASKS',
+    items: [
+      { path: '/employee/tasks',    label: 'My Tasks',     icon: ClipboardList },
+    ],
+  },
+  {
+    label: 'EXPENSES',
+    items: [
+      { path: '/employee/expenses', label: 'My Expenses',  icon: Receipt },
+    ],
+  },
+  {
     label: 'MY INFO',
     items: [
       { path: '/employee/profile',   label: 'My Profile',   icon: User },
       { path: '/employee/documents', label: 'Documents',    icon: FolderOpen },
       { path: '/employee/tickets',   label: 'Raise Ticket', icon: TicketCheck },
+      { path: '/employee/exit',      label: 'Exit Request', icon: DoorOpen },
     ],
   },
 ];
 
 export default function EmployeePortalLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  // EmployeeProtectedRoute redirects to /login automatically when user becomes null
+  const handleLogout = () => { logout(); };
 
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -63,6 +77,7 @@ export default function EmployeePortalLayout() {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <div className="flex items-center gap-2 pl-3 border-l border-border/60">
             <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-sm shrink-0">
               <span className="text-xs font-bold text-white">{initials}</span>

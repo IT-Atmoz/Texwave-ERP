@@ -14,7 +14,11 @@
       "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm run build 2>&1 | grep -E \"error|warning|✓ built\")",
       "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm run build 2>&1 | grep -E \"error TS|✓ built|×\")",
       "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm run build 2>&1 | tail -5)",
-      "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm run build 2>&1 | tail -30)"
+      "Bash(cd \"D:\\\\Github\\\\TexawaveERP\\\\SalesFeature\" && npm run build 2>&1 | tail -30)",
+      "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && npm run build 2>&1 | tail -40)",
+      "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && npm run build 2>&1)",
+      "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && grep -r \"from 'sonner'\\\\|from \\\\\"sonner\\\\\"\\\\|from '@/hooks/use-toast'\" src/ --include=\"*.tsx\" --include=\"*.ts\" -l | head -10)",
+      "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && grep -r \"from '@/hooks/use-toast'\" src/ --include=\"*.tsx\" --include=\"*.ts\" -l | head -5)"
     ]
   }
 }

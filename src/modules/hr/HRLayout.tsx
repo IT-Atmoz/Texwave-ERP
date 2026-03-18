@@ -24,6 +24,8 @@ import {
   GitBranch,
   ClipboardList,
   TicketCheck,
+  Receipt,
+  DoorOpen,
 } from 'lucide-react';
 
 export default function HRLayout() {
@@ -81,9 +83,17 @@ export default function HRLayout() {
       ],
     },
     {
+      label: 'TASKS',
+      items: [
+        { path: '/hr/tasks', label: 'Task Assignment', icon: ClipboardList },
+      ],
+    },
+    {
       label: 'SUPPORT',
       items: [
-        { path: '/hr/tickets', label: 'Employee Tickets', icon: TicketCheck },
+        { path: '/hr/tickets',           label: 'Employee Tickets',  icon: TicketCheck },
+        { path: '/hr/expense-approvals', label: 'Expense Approvals', icon: Receipt },
+        { path: '/hr/exit-requests',     label: 'Exit Requests',     icon: DoorOpen },
       ],
     },
     ...(user?.role === 'admin' ? [{

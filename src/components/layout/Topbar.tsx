@@ -1,7 +1,8 @@
 import { useAuth } from '@/context/AuthContext';
 import { LiveClock } from './LiveClock';
-import { Bell, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export const Topbar = () => {
   const { user } = useAuth();
@@ -36,20 +37,18 @@ export const Topbar = () => {
         </div>
 
         {/* Notification bell */}
-        <button className="relative h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-150">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
 
         {/* User chip */}
         {user && (
           <div className="flex items-center gap-2 pl-3 border-l border-border/60">
             <div className="h-7 w-7 rounded-full bg-gradient-primary flex items-center justify-center shadow-sm">
               <span className="text-[10px] font-bold text-white">
-                {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                {(user.name || user.username || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
               </span>
             </div>
             <div className="hidden sm:block leading-none">
-              <p className="text-xs font-semibold text-foreground">{user.name}</p>
+              <p className="text-xs font-semibold text-foreground">{user.name || user.username}</p>
               <p className="text-[10px] text-muted-foreground capitalize mt-0.5">{user.role}</p>
             </div>
           </div>

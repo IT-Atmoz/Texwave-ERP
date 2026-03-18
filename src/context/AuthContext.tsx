@@ -37,16 +37,28 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   employee: [],
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [privileges, setPrivileges] = useState<Record<string, string[]>>(ROLE_PERMISSIONS);
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('erp_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+// Synchronously read and validate the saved user from localStorage.
+// Using useState's lazy initializer so this runs once before the first render,
+// eliminating the loading=true flash entirely.
+function readSavedUser(): User | null {
+  try {
+    const saved = localStorage.getItem('erp_user');
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (parsed && parsed.username && parsed.role) {
+      if (!parsed.name) parsed.name = parsed.username;
+      return parsed as User;
     }
-  }, []);
+    localStorage.removeItem('erp_user');
+  } catch {
+    try { localStorage.removeItem('erp_user'); } catch {}
+  }
+  return null;
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(readSavedUser);
+  const [privileges, setPrivileges] = useState<Record<string, string[]>>(ROLE_PERMISSIONS);
 
   // Listen to Firebase privileges in real-time
   useEffect(() => {
