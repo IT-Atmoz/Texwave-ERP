@@ -1,431 +1,405 @@
-// src/modules/hr/LeaveManagement.tsx
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Check, X, Search, Calendar, Filter, Download, Clock, User, FileText, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { database } from '@/services/firebase';
+import { ref, onValue, update, increment, get } from 'firebase/database';
+import { Check, X, Search, Download, Clock, CheckCircle, XCircle, CalendarDays, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
-import { Leave, Employee, DEPARTMENTS } from '@/types';
-import { createRecord, updateRecord, getAllRecords, deleteRecord } from '@/services/firebase';
-import { ref, set } from 'firebase/database';
-import { database } from '@/services/firebase';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { sendNotification, notifyAdminFeed } from '@/services/notifications';
 
-const calculateDays = (start: string, end: string): number => {
-  if (!start || !end) return 0;
-  const s = new Date(start);
-  const e = new Date(end);
-  const diff = e.getTime() - s.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+interface LeaveApplication {
+  id: string;
+  employeeId: string;
+  employeeFirebaseKey?: string;
+  employeeName: string;
+  type: string;
+  fromDate: string;
+  toDate: string;
+  days: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  appliedAt: number;
+  reviewNote?: string;
+  reviewedBy?: string;
+  reviewedAt?: number;
+}
+
+const LEAVE_TYPE_COLORS: Record<string, string> = {
+  Casual: 'bg-blue-100 text-blue-700',
+  Sick: 'bg-red-100 text-red-700',
+  Earned: 'bg-green-100 text-green-700',
+  Compensatory: 'bg-purple-100 text-purple-700',
+  Marriage: 'bg-pink-100 text-pink-700',
+  OnDuty: 'bg-amber-100 text-amber-700',
 };
 
-const isAdmin = () => {
-  const user = localStorage.getItem('erp_user');
-  if (!user) return false;
-  try {
-    const parsed = JSON.parse(user);
-    return parsed.role === 'admin';
-  } catch {
-    return false;
-  }
-};
-
-export default function LeaveManagement() {
-  const [leaves, setLeaves] = useState<Leave[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+export default function Leaves() {
+  const { user } = useAuth();
+  const [applications, setApplications] = useState<LeaveApplication[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
-    employeeId: '',
-    employeeName: '',
-    department: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
-  });
+  // Review dialog
+  const [reviewTarget, setReviewTarget] = useState<LeaveApplication | null>(null);
+  const [reviewAction, setReviewAction] = useState<'approved' | 'rejected'>('approved');
+  const [reviewNote, setReviewNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
+  const canApprove = user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager';
+
+  // Real-time listener on hr/leaveApplications
   useEffect(() => {
-    fetchLeaves();
-    fetchEmployees();
+    const unsub = onValue(ref(database, 'hr/leaveApplications'), snap => {
+      if (!snap.exists()) { setApplications([]); return; }
+      const list: LeaveApplication[] = Object.entries(snap.val())
+        .map(([id, v]: any) => ({ ...v, id }))
+        .sort((a: any, b: any) => b.appliedAt - a.appliedAt);
+      setApplications(list);
+    });
+    return () => unsub();
   }, []);
 
-  const fetchLeaves = async () => {
-    const data = await getAllRecords('hr/leaves');
-    setLeaves((data as Leave[]).sort((a: any, b: any) => b.appliedAt - a.appliedAt));
+  const openReview = (app: LeaveApplication, action: 'approved' | 'rejected') => {
+    setReviewTarget(app);
+    setReviewAction(action);
+    setReviewNote('');
   };
 
-  const fetchEmployees = async () => {
-    const data = await getAllRecords('hr/employees');
-    setEmployees(data as Employee[]);
-  };
+  const handleReview = async () => {
+    if (!reviewTarget) return;
+    setSubmitting(true);
+    try {
+      const reviewer = user?.name || user?.username || 'HR';
 
-  // Auto-mark attendance as "Leave" when approved
-  const markAttendanceAsLeave = async (employeeId: string, employeeName: string, start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+      // 1. Update leave application status
+      await update(ref(database, `hr/leaveApplications/${reviewTarget.id}`), {
+        status: reviewAction,
+        reviewNote: reviewNote.trim() || null,
+        reviewedBy: reviewer,
+        reviewedAt: Date.now(),
+      });
 
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      const path = `hr/attendance/${dateStr}`;
-
-      // Check if attendance already exists
-      const existing = await getAllRecords(path);
-      const existingRecord = Object.values(existing || {}).find((rec: any) => rec.employeeId === employeeId);
-
-      const payload = {
-        employeeId,
-        employeeName,
-        date: dateStr,
-        status: 'Leave',
-        checkIn: '',
-        checkOut: '',
-        workHrs: 0,
-        otHrs: 0,
-        pendingHrs: 0,
-        totalHours: 0,
-        notes: 'Auto-marked due to approved leave',
-        createdAt: existingRecord?.createdAt || Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      if (existingRecord?.id) {
-        await updateRecord(path, existingRecord.id, payload);
-      } else {
-        await createRecord(path, payload);
+      // 2. If approved → deduct from leave balance
+      if (reviewAction === 'approved') {
+        await update(
+          ref(database, `hr/leaveBalances/${reviewTarget.employeeId}/${reviewTarget.type}`),
+          { taken: increment(reviewTarget.days) },
+        );
       }
-    }
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+      // 3. Resolve employee notification key: prefer stored firebaseKey,
+      //    fallback to looking up in users/ by employeeId
+      let empNotifKey = reviewTarget.employeeFirebaseKey || '';
+      if (!empNotifKey || empNotifKey === reviewTarget.employeeId) {
+        // Try to find the real Firebase key from users/ node
+        const usersSnap = await get(ref(database, 'users'));
+        if (usersSnap.exists()) {
+          const usersData = usersSnap.val();
+          for (const key of Object.keys(usersData)) {
+            if (usersData[key].employeeId === reviewTarget.employeeId) {
+              empNotifKey = key;
+              break;
+            }
+          }
+        }
+      }
+      if (!empNotifKey) empNotifKey = reviewTarget.employeeId;
 
-    if (!formData.employeeId || !formData.startDate || !formData.endDate || !formData.reason) {
-      toast({ title: 'Please fill all required fields', variant: 'destructive' });
-      return;
-    }
-
-    if (new Date(formData.endDate) < new Date(formData.startDate)) {
-      toast({ title: 'End date cannot be before start date', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const emp = employees.find(e => e.id === formData.employeeId);
-      if (!emp) return;
-
-      const totalDays = calculateDays(formData.startDate, formData.endDate);
-
-      await createRecord('hr/leaves', {
-        employeeId: formData.employeeId,
-        employeeName: emp.name,
-        department: emp.department,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        reason: formData.reason,
-        totalDays,
-        status: 'Pending',
-        appliedAt: Date.now(),
-      });
-
-      toast({ title: 'Leave request submitted' });
-      setIsDialogOpen(false);
-      resetForm();
-      fetchLeaves();
-    } catch (error) {
-      toast({ title: 'Failed to submit', variant: 'destructive' });
-    }
-  };
-
-  const handleApprove = async (leave: Leave) => {
-    if (!isAdmin()) {
-      toast({ title: 'Only Admin can approve leaves', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      await updateRecord('hr/leaves', leave.id!, {
-        status: 'Approved',
-        processedBy: JSON.parse(localStorage.getItem('erp_user') || '{}').name || 'Admin',
-        processedAt: Date.now(),
-      });
-
-      // Auto-mark attendance as Leave
-      await markAttendanceAsLeave(
-        leave.employeeId!,
-        leave.employeeName,
-        leave.startDate,
-        leave.endDate
+      await sendNotification(
+        empNotifKey,
+        `Leave ${reviewAction === 'approved' ? 'Approved ✓' : 'Rejected ✗'}`,
+        `Your ${reviewTarget.type} leave (${reviewTarget.fromDate} – ${reviewTarget.toDate}) has been ${reviewAction} by ${reviewer}${reviewNote.trim() ? `. Note: ${reviewNote.trim()}` : ''}`,
+        'leave',
       );
 
-      toast({ title: 'Leave approved & attendance updated' });
-      fetchLeaves();
-    } catch (error) {
-      toast({ title: 'Failed to approve', variant: 'destructive' });
+      // 4. Notify admin feed so all staff see the action
+      await notifyAdminFeed(
+        `Leave ${reviewAction === 'approved' ? 'Approved' : 'Rejected'} — ${reviewTarget.employeeName}`,
+        `${reviewTarget.type} leave (${reviewTarget.fromDate} – ${reviewTarget.toDate}, ${reviewTarget.days} day${reviewTarget.days > 1 ? 's' : ''}) ${reviewAction} by ${reviewer}`,
+        'leave',
+      );
+
+      toast.success(`Leave ${reviewAction} — balance updated & employee notified`);
+      setReviewTarget(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update leave status');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleReject = async (leave: Leave) => {
-    if (!isAdmin()) {
-      toast({ title: 'Only Admin can reject leaves', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      await updateRecord('hr/leaves', leave.id!, {
-        status: 'Rejected',
-        processedBy: JSON.parse(localStorage.getItem('erp_user') || '{}').name || 'Admin',
-        processedAt: Date.now(),
-      });
-      toast({ title: 'Leave rejected' });
-      fetchLeaves();
-    } catch (error) {
-      toast({ title: 'Failed to reject', variant: 'destructive' });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!isAdmin()) {
-      toast({ title: 'Only Admin can delete', variant: 'destructive' });
-      return;
-    }
-    if (!confirm('Delete this leave request?')) return;
-
-    try {
-      await deleteRecord('hr/leaves', id);
-      toast({ title: 'Leave deleted' });
-      fetchLeaves();
-    } catch (error) {
-      toast({ title: 'Failed to delete', variant: 'destructive' });
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      employeeId: '',
-      employeeName: '',
-      department: '',
-      startDate: '',
-      endDate: '',
-      reason: '',
+  const filtered = useMemo(() => {
+    return applications.filter(a => {
+      const matchSearch = a.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.type.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = statusFilter === 'all' || a.status === statusFilter;
+      const matchType = typeFilter === 'all' || a.type === typeFilter;
+      const matchMonth = !monthFilter || a.fromDate.startsWith(monthFilter);
+      return matchSearch && matchStatus && matchType && matchMonth;
     });
-  };
-
-  const filteredLeaves = useMemo(() => {
-    return leaves.filter(leave => {
-      const matchesSearch = leave.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        leave.reason.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDept = departmentFilter === 'all' || leave.department === departmentFilter;
-      const matchesStatus = statusFilter === 'all' || leave.status === statusFilter;
-      const matchesMonth = !monthFilter || leave.startDate.startsWith(monthFilter);
-      return matchesSearch && matchesDept && matchesStatus && matchesMonth;
-    });
-  }, [leaves, searchTerm, departmentFilter, statusFilter, monthFilter]);
+  }, [applications, searchTerm, statusFilter, typeFilter, monthFilter]);
 
   const stats = useMemo(() => ({
-    total: filteredLeaves.length,
-    pending: filteredLeaves.filter(l => l.status === 'Pending').length,
-    approved: filteredLeaves.filter(l => l.status === 'Approved').length,
-    rejected: filteredLeaves.filter(l => l.status === 'Rejected').length,
-    totalDays: filteredLeaves.filter(l => l.status === 'Approved').reduce((s, l) => s + (l.totalDays || 0), 0),
-  }), [filteredLeaves]);
+    total: applications.length,
+    pending: applications.filter(a => a.status === 'pending').length,
+    approved: applications.filter(a => a.status === 'approved').length,
+    rejected: applications.filter(a => a.status === 'rejected').length,
+  }), [applications]);
 
-  const exportToCSV = () => {
-    const headers = ['Employee', 'Dept', 'From', 'To', 'Days', 'Reason', 'Status', 'Applied On'];
-    const rows = filteredLeaves.map(l => [
-      l.employeeName,
-      l.department,
-      l.startDate,
-      l.endDate,
-      l.totalDays,
-      `"${l.reason.replace(/"/g, '""')}"`,
-      l.status,
-      new Date(l.appliedAt).toLocaleDateString()
+  const exportCSV = () => {
+    const headers = ['Employee', 'Type', 'From', 'To', 'Days', 'Reason', 'Status', 'Reviewed By', 'Applied On'];
+    const rows = filtered.map(a => [
+      a.employeeName,
+      a.type,
+      a.fromDate,
+      a.toDate,
+      a.days,
+      `"${a.reason.replace(/"/g, '""')}"`,
+      a.status,
+      a.reviewedBy || '',
+      new Date(a.appliedAt).toLocaleDateString('en-IN'),
     ]);
-
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Leaves_${monthFilter}.csv`;
+    a.download = `LeaveApplications_${monthFilter}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const allTypes = [...new Set(applications.map(a => a.type))];
+
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex justify-between items-center">
+    <div className="space-y-5 p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Leave Management</h2>
-          <p className="text-muted-foreground">Manage employee leave requests</p>
+          <h2 className="text-2xl font-bold">Leave Applications</h2>
+          <p className="text-sm text-muted-foreground">Review and approve employee leave requests — real-time</p>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={exportToCSV} variant="outline">
-            <Download className="h-4 w-4 mr-2" /> Export
-          </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Apply Leave</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>New Leave Request</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>Employee</Label>
-                  <Select value={formData.employeeId} onValueChange={(v) => {
-                    const emp = employees.find(e => e.id === v);
-                    setFormData({ ...formData, employeeId: v, department: emp?.department || '' });
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                    <SelectContent>
-                      {employees.filter(e => e.status === 'active').map(emp => (
-                        <SelectItem key={emp.id} value={emp.id!}>
-                          {emp.name} ({emp.employeeId}) - {emp.department}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>From Date</Label>
-                    <Input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label>To Date</Label>
-                    <Input type="date" value={formData.endDate} min={formData.startDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
-                  </div>
-                </div>
-
-                {formData.startDate && formData.endDate && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="font-semibold text-blue-700">
-                      Total Leave Days: {calculateDays(formData.startDate, formData.endDate)}
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <Label>Reason</Label>
-                  <Textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} rows={4} />
-                </div>
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                  <Button type="submit">Submit Request</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button variant="outline" onClick={exportCSV} className="gap-2">
+          <Download className="h-4 w-4" /> Export CSV
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold">{stats.total}</p><p>Total</p></CardContent></Card>
-        <Card className="bg-amber-50"><CardContent className="pt-6 text-center text-amber-700"><p className="text-3xl font-bold">{stats.pending}</p><p>Pending</p></CardContent></Card>
-        <Card className="bg-emerald-50"><CardContent className="pt-6 text-center text-emerald-700"><p className="text-3xl font-bold">{stats.approved}</p><p>Approved</p></CardContent></Card>
-        <Card className="bg-red-50"><CardContent className="pt-6 text-center text-red-700"><p className="text-3xl font-bold">{stats.rejected}</p><p>Rejected</p></CardContent></Card>
-        <Card className="bg-blue-50"><CardContent className="pt-6 text-center text-blue-700"><p className="text-3xl font-bold">{stats.totalDays}</p><p>Days Taken</p></CardContent></Card>
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4 pb-4 text-center">
+            <p className="text-3xl font-bold">{stats.total}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Total</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="pt-4 pb-4 text-center">
+            <p className="text-3xl font-bold text-amber-700">{stats.pending}</p>
+            <p className="text-xs text-amber-600 mt-0.5">Pending</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="pt-4 pb-4 text-center">
+            <p className="text-3xl font-bold text-green-700">{stats.approved}</p>
+            <p className="text-xs text-green-600 mt-0.5">Approved</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="pt-4 pb-4 text-center">
+            <p className="text-3xl font-bold text-red-700">{stats.rejected}</p>
+            <p className="text-xs text-red-600 mt-0.5">Rejected</p>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employee, reason..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
             </div>
-            <div className="flex gap-3">
-              <Input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} />
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Depts</SelectItem>
-                  {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Input
+              type="month"
+              value={monthFilter}
+              onChange={e => setMonthFilter(e.target.value)}
+              className="w-40"
+            />
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="All Types" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {allTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="All Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Dept</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLeaves.map(leave => (
-                <TableRow key={leave.id}>
-                  <TableCell className="font-medium">{leave.employeeName}</TableCell>
-                  <TableCell><Badge variant="secondary">{leave.department}</Badge></TableCell>
-                  <TableCell>{new Date(leave.startDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(leave.endDate).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-center font-bold">{leave.totalDays}</TableCell>
-                  <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                  <TableCell>
-                    <Badge className={
-                      leave.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
-                      leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-amber-100 text-amber-800'
-                    }>
-                      {leave.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {isAdmin() && leave.status === 'Pending' ? (
-                      <div className="flex justify-center gap-2">
-                        <Button size="sm" onClick={() => handleApprove(leave)} className="bg-emerald-600">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleReject(leave)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : isAdmin() ? (
-                      <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDelete(leave.id!)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {leave.processedBy ? `By ${leave.processedBy}` : 'Pending'}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {filtered.length === 0 ? (
+            <div className="text-center py-14 text-muted-foreground">
+              <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-sm font-medium">No leave applications found</p>
+              <p className="text-xs mt-1 opacity-60">Employees can apply for leave from the employee portal</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>To</TableHead>
+                    <TableHead className="text-center">Days</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied</TableHead>
+                    {canApprove && <TableHead className="text-center">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map(app => (
+                    <TableRow key={app.id} className={app.status === 'pending' ? 'bg-amber-50/30' : ''}>
+                      <TableCell className="font-medium">{app.employeeName}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-[10px] border-0 ${LEAVE_TYPE_COLORS[app.type] || 'bg-gray-100 text-gray-700'}`}>
+                          {app.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{app.fromDate}</TableCell>
+                      <TableCell className="text-sm">{app.toDate}</TableCell>
+                      <TableCell className="text-center font-bold">{app.days}</TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <p className="truncate text-sm">{app.reason}</p>
+                        {app.reviewNote && (
+                          <p className="text-xs text-muted-foreground mt-0.5 italic truncate">Note: {app.reviewNote}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={
+                          app.status === 'approved' ? 'bg-green-100 text-green-800 border-0' :
+                          app.status === 'rejected' ? 'bg-red-100 text-red-800 border-0' :
+                          'bg-amber-100 text-amber-800 border-0'
+                        }>
+                          {app.status === 'pending' ? (
+                            <><Clock className="h-3 w-3 mr-1 inline" />Pending</>
+                          ) : app.status === 'approved' ? (
+                            <><CheckCircle className="h-3 w-3 mr-1 inline" />Approved</>
+                          ) : (
+                            <><XCircle className="h-3 w-3 mr-1 inline" />Rejected</>
+                          )}
+                        </Badge>
+                        {app.reviewedBy && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">by {app.reviewedBy}</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(app.appliedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                      </TableCell>
+                      {canApprove && (
+                        <TableCell>
+                          {app.status === 'pending' ? (
+                            <div className="flex gap-1.5 justify-center">
+                              <Button
+                                size="sm"
+                                className="h-7 px-2 bg-green-600 hover:bg-green-700 gap-1"
+                                onClick={() => openReview(app, 'approved')}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 px-2 gap-1"
+                                onClick={() => openReview(app, 'rejected')}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {app.reviewedAt ? new Date(app.reviewedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Review Dialog */}
+      <Dialog open={!!reviewTarget} onOpenChange={v => { if (!v) setReviewTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className={reviewAction === 'approved' ? 'text-green-700' : 'text-red-700'}>
+              {reviewAction === 'approved' ? 'Approve' : 'Reject'} Leave Request
+            </DialogTitle>
+          </DialogHeader>
+          {reviewTarget && (
+            <div className="space-y-4 py-2">
+              <div className="p-3 rounded-lg bg-muted/40 space-y-1 text-sm">
+                <p><span className="font-semibold">Employee:</span> {reviewTarget.employeeName}</p>
+                <p><span className="font-semibold">Type:</span> {reviewTarget.type}</p>
+                <p><span className="font-semibold">Period:</span> {reviewTarget.fromDate} → {reviewTarget.toDate} ({reviewTarget.days} day{reviewTarget.days > 1 ? 's' : ''})</p>
+                <p><span className="font-semibold">Reason:</span> {reviewTarget.reason}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Review Note (optional)</Label>
+                <Textarea
+                  placeholder={reviewAction === 'approved' ? 'Any note for the employee...' : 'Reason for rejection...'}
+                  value={reviewNote}
+                  onChange={e => setReviewNote(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewTarget(null)}>Cancel</Button>
+            <Button
+              onClick={handleReview}
+              disabled={submitting}
+              className={reviewAction === 'approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {submitting ? 'Saving...' : (reviewAction === 'approved' ? 'Confirm Approve' : 'Confirm Reject')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

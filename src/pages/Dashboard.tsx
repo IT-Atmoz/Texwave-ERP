@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +15,9 @@ import {
   ArrowDownCircle,
   Landmark,
   Receipt,
+  TicketCheck,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -34,6 +36,9 @@ import { ref, onValue } from 'firebase/database';
 import { getAllRecords } from '@/services/firebase';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const ticketActivityRef = useRef<any[]>([]);
+  const expenseActivityRef = useRef<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Financial KPIs
@@ -46,6 +51,9 @@ export default function Dashboard() {
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [presentToday, setPresentToday] = useState(0);
   const [pendingLeaves, setPendingLeaves] = useState(0);
+  const [openTickets, setOpenTickets] = useState(0);
+  const [pendingExpenseRequests, setPendingExpenseRequests] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   // Lists
   const [topUnpaidInvoices, setTopUnpaidInvoices] = useState<any[]>([]);
@@ -55,6 +63,13 @@ export default function Dashboard() {
   // Chart data (last 6 months)
   const [monthlyChart, setMonthlyChart] = useState<any[]>([]);
   const [pieData, setPieData] = useState<any[]>([]);
+
+  const mergeActivity = () => {
+    const combined = [...ticketActivityRef.current, ...expenseActivityRef.current]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 8);
+    setRecentActivity(combined);
+  };
 
   useEffect(() => {
     loadFinancials();
@@ -86,10 +101,56 @@ export default function Dashboard() {
       }
     });
 
+    // Tickets listener
+    const ticketsRef = ref(database, 'hr/tickets');
+    const unsubTickets = onValue(ticketsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const tickets = Object.values(data) as any[];
+        setOpenTickets(tickets.filter((t: any) => t.status === 'open' || t.status === 'in_progress').length);
+        ticketActivityRef.current = tickets.map((t: any) => ({
+          type: 'ticket',
+          name: t.employeeName,
+          detail: `[${t.category}] ${t.subject}`,
+          status: t.status,
+          createdAt: t.createdAt,
+        }));
+        mergeActivity();
+      } else {
+        setOpenTickets(0);
+        ticketActivityRef.current = [];
+        mergeActivity();
+      }
+    });
+
+    // Expense requests listener
+    const expReqRef = ref(database, 'hr/expenseRequests');
+    const unsubExpReq = onValue(expReqRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const expReqs = Object.values(data) as any[];
+        setPendingExpenseRequests(expReqs.filter((e: any) => e.status === 'pending').length);
+        expenseActivityRef.current = expReqs.map((e: any) => ({
+          type: 'expense',
+          name: e.employeeName,
+          detail: `${e.expenseType} — ₹${(e.amount || 0).toLocaleString('en-IN')}`,
+          status: e.status,
+          createdAt: e.createdAt,
+        }));
+        mergeActivity();
+      } else {
+        setPendingExpenseRequests(0);
+        expenseActivityRef.current = [];
+        mergeActivity();
+      }
+    });
+
     return () => {
       unsubEmployees();
       unsubAttendance();
       unsubLeaves();
+      unsubTickets();
+      unsubExpReq();
     };
   }, []);
 
@@ -460,20 +521,84 @@ export default function Dashboard() {
               <UserCheck className="h-5 w-5 text-rose-600" />
               HR Snapshot (Today)
             </CardTitle>
+            <button onClick={() => navigate('/hr/dashboard')} className="text-xs text-primary hover:underline">Go to HR →</button>
           </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4 text-sm">
+          <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
             <div className="p-4 rounded-lg bg-rose-50 flex flex-col gap-1 items-center text-center">
+              <Users className="h-5 w-5 text-rose-400 mb-1" />
               <span className="text-xs text-muted-foreground">Total Employees</span>
               <span className="text-3xl font-bold">{totalEmployees}</span>
             </div>
             <div className="p-4 rounded-lg bg-green-50 flex flex-col gap-1 items-center text-center">
+              <UserCheck className="h-5 w-5 text-green-400 mb-1" />
               <span className="text-xs text-muted-foreground">Present Today</span>
               <span className="text-3xl font-bold">{presentToday}</span>
             </div>
             <div className="p-4 rounded-lg bg-amber-50 flex flex-col gap-1 items-center text-center">
-              <span className="text-xs text-muted-foreground">Pending Leave Requests</span>
+              <FileText className="h-5 w-5 text-amber-400 mb-1" />
+              <span className="text-xs text-muted-foreground">Pending Leaves</span>
               <span className="text-3xl font-bold">{pendingLeaves}</span>
             </div>
+            <div
+              className="p-4 rounded-lg bg-blue-50 flex flex-col gap-1 items-center text-center cursor-pointer hover:bg-blue-100 transition-colors"
+              onClick={() => navigate('/hr/tickets')}
+            >
+              <TicketCheck className="h-5 w-5 text-blue-400 mb-1" />
+              <span className="text-xs text-muted-foreground">Open Tickets</span>
+              <span className={`text-3xl font-bold ${openTickets > 0 ? 'text-blue-600' : ''}`}>{openTickets}</span>
+            </div>
+            <div
+              className="p-4 rounded-lg bg-orange-50 flex flex-col gap-1 items-center text-center cursor-pointer hover:bg-orange-100 transition-colors"
+              onClick={() => navigate('/hr/expense-approvals')}
+            >
+              <Receipt className="h-5 w-5 text-orange-400 mb-1" />
+              <span className="text-xs text-muted-foreground">Pending Expenses</span>
+              <span className={`text-3xl font-bold ${pendingExpenseRequests > 0 ? 'text-orange-600' : ''}`}>{pendingExpenseRequests}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Employee Activity */}
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TicketCheck className="h-5 w-5 text-primary" />
+              Recent Employee Activity (Tickets &amp; Expenses)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No recent activity</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentActivity.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 cursor-pointer"
+                    onClick={() => navigate(item.type === 'ticket' ? '/hr/tickets' : '/hr/expense-approvals')}
+                  >
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${item.type === 'ticket' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                      {item.type === 'ticket'
+                        ? <TicketCheck className="h-4 w-4 text-blue-600" />
+                        : <Receipt className="h-4 w-4 text-orange-600" />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.detail}</p>
+                      <p className="text-xs text-muted-foreground">{item.name} · {new Date(item.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+                      item.status === 'open' || item.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      item.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                      item.status === 'approved' || item.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {item.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

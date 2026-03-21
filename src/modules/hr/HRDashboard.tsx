@@ -10,6 +10,8 @@ import {
   CalendarCheck,
   IndianRupee,
   UserPlus,
+  TicketCheck,
+  Receipt,
 } from 'lucide-react';
 import {
   Card,
@@ -75,7 +77,11 @@ export default function HRDashboard() {
     pendingPayroll: 0,
     leaveToday: 0,
     absentToday: 0,
+    openTickets: 0,
+    pendingExpenses: 0,
   });
+  const [recentTickets, setRecentTickets] = useState<any[]>([]);
+  const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
 
   const [userName, setUserName] = useState('HR Manager');
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -92,6 +98,38 @@ export default function HRDashboard() {
     } catch {}
 
     fetchDashboardData();
+  }, []);
+
+  // Real-time tickets listener
+  useEffect(() => {
+    const unsub = onValue(ref(database, 'hr/tickets'), snap => {
+      if (!snap.exists()) { setRecentTickets([]); return; }
+      const list = Object.entries(snap.val())
+        .map(([id, v]: any) => ({ ...v, id }))
+        .sort((a: any, b: any) => b.createdAt - a.createdAt);
+      setRecentTickets(list.slice(0, 5));
+      setStats(prev => ({
+        ...prev,
+        openTickets: list.filter((t: any) => t.status === 'open' || t.status === 'in_progress').length,
+      }));
+    });
+    return () => unsub();
+  }, []);
+
+  // Real-time expenses listener
+  useEffect(() => {
+    const unsub = onValue(ref(database, 'hr/expenseRequests'), snap => {
+      if (!snap.exists()) { setRecentExpenses([]); return; }
+      const list = Object.entries(snap.val())
+        .map(([id, v]: any) => ({ ...v, id }))
+        .sort((a: any, b: any) => b.createdAt - a.createdAt);
+      setRecentExpenses(list.slice(0, 5));
+      setStats(prev => ({
+        ...prev,
+        pendingExpenses: list.filter((e: any) => e.status === 'pending').length,
+      }));
+    });
+    return () => unsub();
   }, []);
 
   // Load TODOs from Firebase
@@ -289,6 +327,18 @@ export default function HRDashboard() {
       path: '/hr/payroll',
       color: 'bg-purple-50 text-purple-600 hover:bg-purple-100',
     },
+    {
+      icon: TicketCheck,
+      label: 'View Tickets',
+      path: '/hr/tickets',
+      color: 'bg-amber-50 text-amber-700 hover:bg-amber-100',
+    },
+    {
+      icon: Receipt,
+      label: 'Expense Review',
+      path: '/hr/expense-approvals',
+      color: 'bg-orange-50 text-orange-600 hover:bg-orange-100',
+    },
   ];
 
   return (
@@ -301,8 +351,8 @@ export default function HRDashboard() {
         <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
       </div>
 
-      {/* Row 2: 4 KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Row 2: 6 KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-5 pb-5">
             <div className="flex items-center justify-between">
@@ -354,6 +404,36 @@ export default function HRDashboard() {
               </div>
               <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
                 <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/hr/tickets')}>
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Open Tickets</p>
+                <p className={`text-3xl font-bold mt-1 ${stats.openTickets > 0 ? 'text-amber-600' : 'text-foreground'}`}>{stats.openTickets}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Click to view</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                <TicketCheck className="h-5 w-5 text-amber-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/hr/expense-approvals')}>
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending Expenses</p>
+                <p className={`text-3xl font-bold mt-1 ${stats.pendingExpenses > 0 ? 'text-orange-600' : 'text-foreground'}`}>{stats.pendingExpenses}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Click to review</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-orange-600" />
               </div>
             </div>
           </CardContent>
@@ -425,7 +505,7 @@ export default function HRDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
+          <CardContent className="grid grid-cols-3 gap-3">
             {quickActions.map(action => {
               const Icon = action.icon;
               return (
@@ -443,7 +523,92 @@ export default function HRDashboard() {
         </Card>
       </div>
 
-      {/* Row 4: HR TODO full-width */}
+      {/* Row 4: Recent Tickets + Recent Expense Requests */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Recent Tickets */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <TicketCheck className="h-4 w-4 text-amber-600" />
+              Recent Employee Tickets
+            </CardTitle>
+            <button
+              onClick={() => navigate('/hr/tickets')}
+              className="text-xs text-primary hover:underline"
+            >
+              View All →
+            </button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recentTickets.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No tickets raised</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentTickets.map((ticket: any) => (
+                  <div key={ticket.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/30">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{ticket.subject}</p>
+                      <p className="text-xs text-muted-foreground">{ticket.employeeName} · {ticket.category}</p>
+                    </div>
+                    <span className={`ml-2 shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
+                      ticket.status === 'open' ? 'bg-blue-100 text-blue-700' :
+                      ticket.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
+                      ticket.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {ticket.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Expense Requests */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Receipt className="h-4 w-4 text-orange-600" />
+              Recent Expense Requests
+            </CardTitle>
+            <button
+              onClick={() => navigate('/hr/expense-approvals')}
+              className="text-xs text-primary hover:underline"
+            >
+              View All →
+            </button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recentExpenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No expense requests</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentExpenses.map((expense: any) => (
+                  <div key={expense.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/30">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{expense.employeeName} · {expense.expenseType}</p>
+                      <p className="text-xs text-muted-foreground truncate">{expense.description}</p>
+                    </div>
+                    <div className="ml-2 shrink-0 text-right">
+                      <p className="text-sm font-bold">₹{(expense.amount || 0).toLocaleString('en-IN')}</p>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        expense.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        expense.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {expense.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 5: HR TODO full-width */}
       <div>
         {/* HR TODO List */}
         <Card>

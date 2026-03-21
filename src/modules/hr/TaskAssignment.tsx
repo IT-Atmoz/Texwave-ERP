@@ -24,12 +24,17 @@ interface Task {
   assignedTo: string;
   assignedToName: string;
   assignedBy: string;
+  createdBy?: string;
   dueDate: string;
   priority: TaskPriority;
   status: TaskStatus;
   notes?: string;
+  isEmployeeCreated?: boolean;
+  requestToAdmin?: boolean;
   createdAt: number;
   updatedAt?: number;
+  adminApproved?: boolean;
+  approvedAt?: number;
 }
 
 interface Employee {
@@ -136,12 +141,74 @@ export default function TaskAssignment() {
   };
 
   const updateTaskStatus = async (id: string, newStatus: TaskStatus) => {
+    const task = tasks.find(t => t.id === id);
     setUpdatingId(id);
     try {
       await update(ref(database, `tasks/${id}`), { status: newStatus, updatedAt: Date.now() });
       toast.success('Task updated');
+      // Notify employee when admin completes or changes status on their task
+      if (task && task.assignedTo) {
+        if (newStatus === 'done') {
+          await sendNotification(
+            task.assignedTo,
+            `Task Completed — "${task.title}"`,
+            `${user?.name || 'Admin'} has marked your task as done.`,
+            'task',
+          );
+        } else if (newStatus === 'in_progress') {
+          await sendNotification(
+            task.assignedTo,
+            `Task In Progress — "${task.title}"`,
+            `${user?.name || 'Admin'} is working on your task.`,
+            'task',
+          );
+        }
+      }
     } catch {
       toast.error('Failed to update');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const approveTask = async (task: Task) => {
+    setUpdatingId(task.id);
+    try {
+      await update(ref(database, `tasks/${task.id}`), {
+        adminApproved: true,
+        approvedAt: Date.now(),
+      });
+      await sendNotification(
+        task.assignedTo,
+        `Task Approved ✓ — "${task.title}"`,
+        `Your completed task has been approved by ${user?.name || 'Admin'}.`,
+        'task',
+      );
+      toast.success('Task completion approved');
+    } catch {
+      toast.error('Failed to approve');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const reopenTask = async (task: Task) => {
+    setUpdatingId(task.id);
+    try {
+      await update(ref(database, `tasks/${task.id}`), {
+        status: 'in_progress',
+        adminApproved: false,
+        updatedAt: Date.now(),
+      });
+      await sendNotification(
+        task.assignedTo,
+        `Task Reopened — "${task.title}"`,
+        `${user?.name || 'Admin'} has reopened your task. Please review and resubmit.`,
+        'task',
+      );
+      toast.success('Task reopened and employee notified');
+    } catch {
+      toast.error('Failed to reopen');
     } finally {
       setUpdatingId(null);
     }
@@ -168,19 +235,31 @@ export default function TaskAssignment() {
     toast.success('Excel downloaded');
   };
 
-  const filtered = tasks.filter(t => {
+  // Split: admin-assigned vs employee-created requests
+  const employeeRequests = tasks.filter(t => t.requestToAdmin);
+  const adminTasks = tasks.filter(t => !t.requestToAdmin);
+
+  const applyFilters = (list: Task[]) => list.filter(t => {
     const matchSearch = !search ||
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       t.assignedToName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === 'all' || t.status === filterStatus;
+    const matchStatus =
+      filterStatus === 'all' ? true :
+      filterStatus === 'awaiting' ? (t.status === 'done' && !t.adminApproved) :
+      t.status === filterStatus;
     const matchEmp = filterEmployee === 'all' || t.assignedTo === filterEmployee;
     return matchSearch && matchStatus && matchEmp;
   });
 
+  const filtered = applyFilters(adminTasks);
+  const filteredRequests = applyFilters(employeeRequests);
+
   const counts = {
-    pending: tasks.filter(t => t.status === 'pending').length,
-    in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    done: tasks.filter(t => t.status === 'done').length,
+    pending:    tasks.filter(t => t.status === 'pending').length,
+    in_progress:tasks.filter(t => t.status === 'in_progress').length,
+    done:       tasks.filter(t => t.status === 'done').length,
+    awaiting:   tasks.filter(t => t.status === 'done' && !t.adminApproved).length,
+    requests:   employeeRequests.filter(t => t.status === 'pending' || t.status === 'in_progress').length,
   };
 
   return (
@@ -202,11 +281,11 @@ export default function TaskAssignment() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {([
-          { key: 'pending', label: 'Pending', color: 'text-gray-600' },
+          { key: 'pending',     label: 'Pending',     color: 'text-gray-600' },
           { key: 'in_progress', label: 'In Progress', color: 'text-blue-600' },
-          { key: 'done', label: 'Completed', color: 'text-green-600' },
+          { key: 'done',        label: 'Completed',   color: 'text-green-600' },
         ] as const).map(({ key, label, color }) => (
           <Card key={key} className="p-4 text-center cursor-pointer hover:border-primary/40 transition-colors"
             onClick={() => setFilterStatus(filterStatus === key ? 'all' : key)}>
@@ -214,6 +293,17 @@ export default function TaskAssignment() {
             <p className="text-xs text-muted-foreground mt-1">{label}</p>
           </Card>
         ))}
+        <Card
+          className={`p-4 text-center cursor-pointer hover:border-amber-400 transition-colors ${counts.awaiting > 0 ? 'border-amber-300 bg-amber-50' : ''}`}
+          onClick={() => setFilterStatus(filterStatus === 'awaiting' ? 'all' : 'awaiting')}
+        >
+          <p className={`text-2xl font-bold ${counts.awaiting > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{counts.awaiting}</p>
+          <p className="text-xs text-muted-foreground mt-1">Awaiting Approval</p>
+        </Card>
+        <Card className={`p-4 text-center cursor-pointer hover:border-purple-400 transition-colors ${counts.requests > 0 ? 'border-purple-300 bg-purple-50' : ''}`}>
+          <p className={`text-2xl font-bold ${counts.requests > 0 ? 'text-purple-600' : 'text-gray-400'}`}>{counts.requests}</p>
+          <p className="text-xs text-muted-foreground mt-1">Employee Requests</p>
+        </Card>
       </div>
 
       {/* Create Task Form */}
@@ -297,12 +387,13 @@ export default function TaskAssignment() {
           <Input className="pl-8" placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             {(Object.keys(statusConfig) as TaskStatus[]).map(s => (
               <SelectItem key={s} value={s}>{statusConfig[s].label}</SelectItem>
             ))}
+            <SelectItem value="awaiting">Awaiting Approval</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterEmployee} onValueChange={setFilterEmployee}>
@@ -318,7 +409,77 @@ export default function TaskAssignment() {
         </Select>
       </div>
 
-      {/* Task List */}
+      {/* Employee Requests Section */}
+      {filteredRequests.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-purple-700 uppercase tracking-wide">
+              Employee Task Requests
+            </h2>
+            <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {filteredRequests.length}
+            </span>
+          </div>
+          {filteredRequests.map(task => {
+            const sCfg = statusConfig[task.status];
+            const pCfg = priorityConfig[task.priority];
+            const Icon = sCfg.icon;
+            const isOverdue = task.status !== 'done' && task.status !== 'cancelled' && task.dueDate < new Date().toISOString().split('T')[0];
+            const awaitingApproval = task.status === 'done' && !task.adminApproved;
+            return (
+              <Card key={task.id} className="border-purple-200 bg-purple-50/30">
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{task.title}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${pCfg.cls}`}>{pCfg.label}</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                          Employee Request
+                        </span>
+                        {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Overdue</span>}
+                        {awaitingApproval && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 animate-pulse">Awaiting Approval</span>}
+                        {task.adminApproved && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">✓ Approved</span>}
+                      </div>
+                      {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
+                        <span>Requested by: <strong>{task.assignedToName}</strong></span>
+                        <span className={isOverdue ? 'text-red-600 font-semibold' : ''}>Due: {task.dueDate}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${sCfg.cls}`}>
+                        <Icon className="h-3 w-3" />{sCfg.label}
+                      </span>
+                      {awaitingApproval ? (
+                        <div className="flex gap-1.5">
+                          <Button size="sm" className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700" disabled={updatingId === task.id} onClick={() => approveTask(task)}>
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={updatingId === task.id} onClick={() => reopenTask(task)}>
+                            Reopen
+                          </Button>
+                        </div>
+                      ) : !task.adminApproved ? (
+                        <Select value={task.status} onValueChange={v => updateTaskStatus(task.id, v as TaskStatus)} disabled={updatingId === task.id}>
+                          <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(statusConfig) as TaskStatus[]).map(s => (
+                              <SelectItem key={s} value={s} className="text-xs">{statusConfig[s].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Admin-Assigned Task List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
           <Card>
@@ -334,8 +495,14 @@ export default function TaskAssignment() {
             const Icon = sCfg.icon;
             const isOverdue = task.status !== 'done' && task.status !== 'cancelled' && task.dueDate < new Date().toISOString().split('T')[0];
 
+            const awaitingApproval = task.status === 'done' && !task.adminApproved;
+
             return (
-              <Card key={task.id} className={isOverdue ? 'border-red-200' : ''}>
+              <Card key={task.id} className={
+                awaitingApproval ? 'border-amber-400 bg-amber-50/30' :
+                task.adminApproved && task.status === 'done' ? 'border-green-300' :
+                isOverdue ? 'border-red-200' : ''
+              }>
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -343,6 +510,16 @@ export default function TaskAssignment() {
                         <p className="text-sm font-semibold">{task.title}</p>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${pCfg.cls}`}>{pCfg.label}</span>
                         {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Overdue</span>}
+                        {awaitingApproval && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 animate-pulse">
+                            Awaiting Approval
+                          </span>
+                        )}
+                        {task.adminApproved && task.status === 'done' && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                            ✓ Approved
+                          </span>
+                        )}
                       </div>
                       {task.description && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
@@ -351,6 +528,9 @@ export default function TaskAssignment() {
                         <span>→ <strong>{task.assignedToName}</strong></span>
                         <span>By: {task.assignedBy}</span>
                         <span className={isOverdue ? 'text-red-600 font-semibold' : ''}>Due: {task.dueDate}</span>
+                        {task.approvedAt && (
+                          <span className="text-green-600">Approved: {new Date(task.approvedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
@@ -358,21 +538,47 @@ export default function TaskAssignment() {
                         <Icon className="h-3 w-3" />
                         {sCfg.label}
                       </span>
-                      {/* Quick status update */}
-                      <Select
-                        value={task.status}
-                        onValueChange={v => updateTaskStatus(task.id, v as TaskStatus)}
-                        disabled={updatingId === task.id}
-                      >
-                        <SelectTrigger className="h-7 text-xs w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(statusConfig) as TaskStatus[]).map(s => (
-                            <SelectItem key={s} value={s} className="text-xs">{statusConfig[s].label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+
+                      {/* Approval actions for done tasks */}
+                      {awaitingApproval ? (
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700"
+                            disabled={updatingId === task.id}
+                            onClick={() => approveTask(task)}
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            disabled={updatingId === task.id}
+                            onClick={() => reopenTask(task)}
+                          >
+                            Reopen
+                          </Button>
+                        </div>
+                      ) : (
+                        /* Quick status update for non-done tasks */
+                        !task.adminApproved && (
+                          <Select
+                            value={task.status}
+                            onValueChange={v => updateTaskStatus(task.id, v as TaskStatus)}
+                            disabled={updatingId === task.id}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(statusConfig) as TaskStatus[]).map(s => (
+                                <SelectItem key={s} value={s} className="text-xs">{statusConfig[s].label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )
+                      )}
                     </div>
                   </div>
                 </CardContent>

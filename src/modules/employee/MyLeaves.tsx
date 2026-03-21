@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/services/firebase';
-import { ref, onValue, push, set } from 'firebase/database';
+import { ref, onValue, push, set, update } from 'firebase/database';
 import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import {
   Umbrella, Plus, CalendarDays, Clock, CheckCircle, XCircle,
   Briefcase, Heart, Star, AlertCircle,
 } from 'lucide-react';
+import { notifyAdminFeed } from '@/services/notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LeaveType = 'Casual' | 'Sick' | 'Earned' | 'Compensatory' | 'Marriage' | 'OnDuty';
@@ -133,7 +134,7 @@ export default function MyLeaves() {
         const data = snap.val();
         const apps: LeaveApplication[] = Object.entries(data)
           .map(([id, v]: any) => ({ ...v, id }))
-          .filter((a: any) => a.employeeId === user.employeeId)
+          .filter((a: any) => a.employeeId === user.employeeId || a.employeeFirebaseKey === (user.firebaseKey || user.employeeId))
           .sort((a: any, b: any) => b.appliedAt - a.appliedAt);
         setApplications(apps);
       } else {
@@ -178,6 +179,7 @@ export default function MyLeaves() {
     try {
       const newApp = {
         employeeId: user.employeeId,
+        employeeFirebaseKey: user.firebaseKey || user.employeeId || '',
         employeeName: user.name,
         type: applyType,
         fromDate,
@@ -188,6 +190,11 @@ export default function MyLeaves() {
         appliedAt: Date.now(),
       };
       await push(ref(database, 'hr/leaveApplications'), newApp);
+      await notifyAdminFeed(
+        `Leave Request — ${user.name}`,
+        `[${applyType}] ${fromDate} to ${toDate} (${leaveDays} day${leaveDays > 1 ? 's' : ''}) — ${reason.trim().slice(0, 60)}`,
+        'leave',
+      );
       toast.success(`Leave application submitted for ${leaveDays} day${leaveDays > 1 ? 's' : ''}`);
       setApplyOpen(false);
       setReason('');
@@ -306,6 +313,17 @@ export default function MyLeaves() {
                             : `${app.fromDate} → ${app.toDate}`} · {app.days} day{app.days > 1 ? 's' : ''}
                         </p>
                         <p className="text-xs text-muted-foreground truncate mt-0.5">{app.reason}</p>
+                        {(app as any).reviewNote && (
+                          <div className={`mt-1.5 text-xs px-2 py-1 rounded border ${app.status === 'approved' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                            <span className="font-semibold">HR Note: </span>{(app as any).reviewNote}
+                          </div>
+                        )}
+                        {(app as any).reviewedBy && (
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {app.status === 'approved' ? 'Approved' : 'Reviewed'} by {(app as any).reviewedBy}
+                            {(app as any).reviewedAt ? ` · ${new Date((app as any).reviewedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
