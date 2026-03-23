@@ -46,7 +46,7 @@ import {
   deleteRecord,
 } from "@/services/firebase";
 import html2pdf from "html2pdf.js";
-import fas from "./fas.png"; // Logo
+import texaLogo from "./texaLogo.jpeg"; // Logo
 
 // ---------------------- TYPES ----------------------
 
@@ -119,26 +119,26 @@ const DCPrintTemplate: React.FC<{ dc: DeliveryChallan }> = ({ dc }) => {
         {/* WHITE HEADER */}
         <div className="bg-white text-black pt-8 pb-6 px-6 text-center border-b-4 border-black">
           <img
-            src={fas}
-            alt="FAS Logo"
+            src={texaLogo}
+            alt="Texawave Logo"
             crossOrigin="anonymous"
             className="w-44 h-20 mx-auto mb-3"
           />
           <h1 className="text-2xl font-bold mt-1 text-black">
-            Fluoro Automation Seals Pvt Ltd
+            Texawave Innovations Private Limited
           </h1>
           <p className="text-sm mt-2 leading-tight text-black">
-            3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+            No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020
           </p>
           <p className="text-sm leading-tight text-black">
-            Phone: +91-841175097 | Email: fas@fluoroautomationseals.com
+            Phone: +91-9841175097 | Email: info@texawave.in
           </p>
         </div>
 
         <div className="flex justify-between bg-gray-100 p-3 border-b-2 border-black text-xs font-bold">
-          <div>GSTIN: 33AAECF2716M1ZO</div>
-          <div>PAN: AAECF2716M</div>
-          <div>CIN: U25209TN2020PTC138498</div>
+          <div>GSTIN: 33AAMCT4293K1ZU</div>
+          <div>PAN: AAMCT4293K</div>
+          <div>CIN: U74999TN2020PTC138498</div>
         </div>
 
         {/* Body */}
@@ -241,7 +241,7 @@ const DCPrintTemplate: React.FC<{ dc: DeliveryChallan }> = ({ dc }) => {
             <div className="flex justify-between items-end">
               <div />
               <div className="text-center">
-                <p className="font-bold mb-8">For Fluoro Automation Seals Pvt Ltd</p>
+                <p className="font-bold mb-8">For Texawave Innovations Private Limited</p>
                 <div className="border-t-2 border-black w-64 mx-auto pt-4">
                   <p className="font-medium text-sm">Authorised Signatory</p>
                 </div>
@@ -350,7 +350,7 @@ export default function DC() {
   const [selectedBillingAddress, setSelectedBillingAddress] = useState<Address | null>(null);
 
   const [form, setForm] = useState({
-    dcNumber: `DCFAS25-${String(Date.now()).slice(-5)}`,
+    dcNumber: `DCTW25-${String(Date.now()).slice(-5)}`,
     dcDate: new Date().toISOString().split("T")[0],
     terms: "",
     remarks: "",
@@ -510,7 +510,7 @@ export default function DC() {
   const resetForm = () => {
     setEditingId(null);
     setForm({
-      dcNumber: `DCFAS25-${String(Date.now()).slice(-5)}`,
+      dcNumber: `DCTW25-${String(Date.now()).slice(-5)}`,
       dcDate: new Date().toISOString().split("T")[0],
       terms: "",
       remarks: "",

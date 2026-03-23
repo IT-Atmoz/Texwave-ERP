@@ -43,9 +43,9 @@ export default function SendEmailDialog({
 }: SendEmailDialogProps) {
   const [to, setTo] = useState(customerEmail)
   const [cc, setCc] = useState("")
-  const [subject, setSubject] = useState(`${documentType} ${documentNumber} from Fluoro Automation Seals`)
+  const [subject, setSubject] = useState(`${documentType} ${documentNumber} from Texawave Innovations`)
   const [body, setBody] = useState(
-    `Dear {{customerName}},\n\nPlease find attached ${documentType.toLowerCase()} ${documentNumber}.\n\nPlease review and let us know if you have any questions.\n\nBest regards,\nFluoro Automation Seals Pvt Ltd`
+    `Dear {{customerName}},\n\nPlease find attached ${documentType.toLowerCase()} ${documentNumber}.\n\nPlease review and let us know if you have any questions.\n\nBest regards,\nTexawave Innovations Private Limited`
   )
   const [attachPDF, setAttachPDF] = useState(true)
   const [sending, setSending] = useState(false)

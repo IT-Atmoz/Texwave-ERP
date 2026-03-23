@@ -39,7 +39,7 @@ const BOM: React.FC = () => {
         description: val[key].description || '',
         status: val[key].status || 'Approved',
         bomDate: val[key].bomDate || '',
-        site: val[key].site || 'FAS',
+        site: val[key].site || 'Texawave',
       }));
       list.sort((a, b) => a.bomCode.localeCompare(b.bomCode));
       setBoms(list);
@@ -56,7 +56,7 @@ const BOM: React.FC = () => {
       description: newDesc.trim(),
       status: 'Approved',
       bomDate: now,
-      site: 'FAS',
+      site: 'Texawave',
       products: [],
     });
     setNewCode('');

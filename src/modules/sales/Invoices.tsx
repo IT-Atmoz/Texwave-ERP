@@ -16,7 +16,7 @@ import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import { getAllRecords, deleteRecord } from "@/services/firebase"
 import CreateInvoice from "./CreateInvoice"
-import fas from "./fas.png"
+import texaLogo from "./texaLogo.jpeg"
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹",
@@ -137,8 +137,8 @@ const numberToWords = (num: number): string => {
           }}
         >
           <img
-            src={fas}
-            alt="FAS"
+            src={texaLogo}
+            alt="Texawave"
             style={{ width: "50px", height: "auto", margin: "0 auto 4px", display: "block" }}
           />
           <h1
@@ -150,17 +150,17 @@ const numberToWords = (num: number): string => {
               letterSpacing: "0.5px",
             }}
           >
-            Fluoro Automation Seals Pvt Ltd
+            Texawave Innovations Private Limited
           </h1>
           <p
             style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}
           >
-            3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+            No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020
           </p>
           <p
             style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}
           >
-            Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+            Phone: +91-9841175097 | Email: info@texawave.in
           </p>
         </div>
 
@@ -176,9 +176,9 @@ const numberToWords = (num: number): string => {
             fontWeight: 700,
           }}
         >
-          <div>GSTIN: 33AAECF2716M1ZO</div>
-          <div>CIN: U25209TN2020PTC138498</div>
-          <div>PAN: AAECF2716M</div>
+          <div>GSTIN: 33AAMCT4293K1ZU</div>
+          <div>CIN: U74999TN2020PTC138498</div>
+          <div>PAN: AAMCT4293K</div>
         </div>
 
         {/* INVOICE TITLE */}
@@ -1336,6 +1336,33 @@ const numberToWords = (num: number): string => {
           </div>
         )}
 
+        {/* BANK DETAILS */}
+        <div
+          style={{
+            borderTop: "2px solid #000",
+            padding: "6px 8px",
+            fontSize: "7.5px",
+            background: "#ffffff",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "8px",
+          }}
+        >
+          <div>
+            <p style={{ fontWeight: 900, fontSize: "8px", margin: "0 0 3px" }}>ACCOUNTS DETAILS</p>
+            <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Bank Name:</strong> IDFC First Bank</p>
+            <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Account No:</strong> 10258311882</p>
+            <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Branch:</strong> Kottivakkam Branch</p>
+            <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>IFSC Code:</strong> IDFB0080138</p>
+          </div>
+          <div>
+            <p style={{ fontWeight: 900, fontSize: "8px", margin: "0 0 3px" }}>DECLARATION</p>
+            <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>1. Goods once sold will not be taken back or exchanged.</p>
+            <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>2. Seller is not responsible for any loss or damage in transit.</p>
+            <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>3. We declare that this invoice shows the actual price of goods.</p>
+          </div>
+        </div>
+
         {/* TERMS & SIGNATURE */}
         <div
           style={{
@@ -1366,7 +1393,7 @@ const numberToWords = (num: number): string => {
               fontWeight: 900,
             }}
           >
-            For Fluoro Automation Seals Pvt Ltd
+            For Texawave Innovations Private Limited
           </p>
           <div style={{ marginTop: "20px", textAlign: "right" }}>
             <p
@@ -1428,8 +1455,8 @@ const numberToWords = (num: number): string => {
               }}
             >
               <img
-                src={fas}
-                alt="FAS"
+                src={texaLogo}
+                alt="Texawave"
                 style={{ width: "50px", height: "auto", margin: "0 auto 4px", display: "block" }}
               />
               <h1
@@ -1441,13 +1468,13 @@ const numberToWords = (num: number): string => {
                   letterSpacing: "0.5px",
                 }}
               >
-                Fluoro Automation Seals Pvt Ltd
+                Texawave Innovations Private Limited
               </h1>
               <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
-                3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+                No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020
               </p>
               <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
-                Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+                Phone: +91-9841175097 | Email: info@texawave.in
               </p>
             </div>
 
@@ -1463,9 +1490,9 @@ const numberToWords = (num: number): string => {
                 fontWeight: 700,
               }}
             >
-              <div>GSTIN: 33AAECF2716M1ZO</div>
-              <div>CIN: U25209TN2020PTC138498</div>
-              <div>PAN: AAECF2716M</div>
+              <div>GSTIN: 33AAMCT4293K1ZU</div>
+              <div>CIN: U74999TN2020PTC138498</div>
+              <div>PAN: AAMCT4293K</div>
             </div>
 
             {/* DELIVERY CHALLAN TITLE */}
@@ -1701,7 +1728,7 @@ const numberToWords = (num: number): string => {
                     color: "#000",
                   }}
                 >
-                  Fluoro Automation Seals Pvt Ltd
+                  Texawave Innovations Private Limited
                 </p>
                 <pre
                   style={{
@@ -1713,13 +1740,13 @@ const numberToWords = (num: number): string => {
                     lineHeight: 1.3,
                   }}
                 >
-                  3/180, Rajiv Gandhi Road{"\n"}Mettukuppam{"\n"}Chennai, Tamil Nadu - 600097{"\n"}India
+                  No 93/206 Canal Bank Road, Indra Nagar,{"\n"}Adyar, Chennai - 600 020
                 </pre>
                 <p style={{ margin: "2px 0", fontWeight: 700 }}>
                   <strong>State Code:</strong> 33
                 </p>
                 <p style={{ margin: "2px 0", fontWeight: 700 }}>
-                  <strong>GSTIN:</strong> 33AAECF2716M1ZO
+                  <strong>GSTIN:</strong> 33AAMCT4293K1ZU
                 </p>
               </div>
 
@@ -1982,6 +2009,33 @@ const numberToWords = (num: number): string => {
               </div>
             )}
 
+            {/* BANK DETAILS */}
+            <div
+              style={{
+                borderTop: "2px solid #000",
+                padding: "6px 8px",
+                fontSize: "7.5px",
+                background: "#ffffff",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+              }}
+            >
+              <div>
+                <p style={{ fontWeight: 900, fontSize: "8px", margin: "0 0 3px" }}>ACCOUNTS DETAILS</p>
+                <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Bank Name:</strong> IDFC First Bank</p>
+                <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Account No:</strong> 10258311882</p>
+                <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>Branch:</strong> Kottivakkam Branch</p>
+                <p style={{ margin: "1px 0", fontWeight: 700 }}><strong>IFSC Code:</strong> IDFB0080138</p>
+              </div>
+              <div>
+                <p style={{ fontWeight: 900, fontSize: "8px", margin: "0 0 3px" }}>DECLARATION</p>
+                <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>1. Goods once sold will not be taken back or exchanged.</p>
+                <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>2. Seller is not responsible for any loss or damage in transit.</p>
+                <p style={{ margin: "1px 0", fontWeight: 600, fontSize: "7px" }}>3. We declare that this invoice shows the actual price of goods.</p>
+              </div>
+            </div>
+
             {/* SIGNATURE */}
             <div
               style={{
@@ -2034,7 +2088,7 @@ const numberToWords = (num: number): string => {
                       marginBottom: "15px",
                     }}
                   >
-                    For Fluoro Automation Seals Pvt Ltd
+                    For Texawave Innovations Private Limited
                   </p>
                   <p
                     style={{

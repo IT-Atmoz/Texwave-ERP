@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import fas from './fas.png';
+import texaLogo from './texaLogo.jpeg';
 
 import { createRecord, getAllRecords, updateRecord, deleteRecord } from '@/services/firebase';
 
@@ -622,18 +622,18 @@ export default function Shipments() {
                         gap: '12px'
                       }}>
                         <img 
-                          src={fas.src || fas} 
-                          alt="FAS Logo" 
+                          src={texaLogo} 
+                          alt="Texawave Logo" 
                           style={{ width: '75px', height: 'auto', flexShrink: 0 }}
                           crossOrigin="anonymous"
                         />
                         <div style={{ textAlign: 'center', flex: 1 }}>
                           <h1 style={{ fontSize: '20px', fontWeight: '900', margin: 0, color: '#000', lineHeight: 1.2 }}>
-                            Fluoro Automation Seals Pvt Ltd
+                            Texawave Innovations Private Limited
                           </h1>
                           <p style={{ fontSize: '9.5px', margin: '3px 0 0 0', color: '#000', lineHeight: 1.3, fontWeight: '600' }}>
-                            3/180, Rajiv Gandhi Road, Mettukuppam, Chennai, Tamil Nadu 600097<br/>
-                            Phone: +91-841175097 | Email: dispatch@fluoroautomation.com
+                            No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020<br/>
+                            Phone: +91-9841175097 | Email: info@texawave.in
                           </p>
                         </div>
                       </div>
@@ -652,15 +652,15 @@ export default function Shipments() {
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span style={{ fontWeight: '900' }}>GSTIN:</span>
-                          <span>33AAECF2716M1ZO</span>
+                          <span>33AAMCT4293K1ZU</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span style={{ fontWeight: '900' }}>PAN:</span>
-                          <span>AAECF2716M</span>
+                          <span>AAMCT4293K</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span style={{ fontWeight: '900' }}>CIN:</span>
-                          <span>U25209TN2020PTC138498</span>
+                          <span>U74999TN2020PTC138498</span>
                         </div>
                       </div>
 
@@ -806,7 +806,7 @@ export default function Shipments() {
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <p style={{ fontWeight: '900', fontSize: '9px', marginBottom: '30px' }}>For Fluoro Automation Seals Pvt Ltd</p>
+                            <p style={{ fontWeight: '900', fontSize: '9px', marginBottom: '30px' }}>For Texawave Innovations Private Limited</p>
                             <div style={{ borderTop: '2px solid #000', width: '150px', marginLeft: 'auto', paddingTop: '5px' }}>
                               <p style={{ fontSize: '8px', fontWeight: '700' }}>Authorized Signatory</p>
                             </div>

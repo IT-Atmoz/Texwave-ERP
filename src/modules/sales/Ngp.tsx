@@ -47,7 +47,7 @@ import {
   deleteRecord,
 } from "@/services/firebase";
 import html2pdf from "html2pdf.js";
-import fas from "./fas.png"; // Your company logo
+import texaLogo from "./texaLogo.jpeg"; // Company logo
 
 // ---------------------- TYPES ----------------------
 
@@ -120,20 +120,20 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp }) 
         {/* WHITE Header */}
         <div className="bg-white text-center mb-4 pb-4 border-b-2 border-black">
           <img
-            src={fas}
-            alt="FAS Logo"
+            src={texaLogo}
+            alt="Texawave Logo"
             crossOrigin="anonymous"
             className="w-44 h-20 mx-auto mb-3"
           />
-          <h1 className="text-xl font-bold text-black">FLUORO AUTOMATION SEALS PRIVATE LIMITED</h1>
+          <h1 className="text-xl font-bold text-black">TEXAWAVE INNOVATIONS PRIVATE LIMITED</h1>
           <p className="text-sm mt-1 text-black">
-            Door No 3/824, Survey No 164/1, Pillaiyar Koil Street, Mettukuppam,<br />
-            Chennai, Tamil Nadu - 600097
+            No 93/206 Canal Bank Road, Indra Nagar,<br />
+            Adyar, Chennai - 600 020
           </p>
           <p className="text-sm text-black">
-            Ph: +91-98411 75097 | +91-72997 87879 &nbsp; Email: fas@fluoroautomationseals.com
+            Ph: +91-98411 75097 | +91-72997 87879 &nbsp; Email: info@texawave.in
           </p>
-          <p className="text-sm font-bold mt-2 text-black">GST No: 33AAECF2716M1ZO</p>
+          <p className="text-sm font-bold mt-2 text-black">GST No: 33AAMCT4293K1ZU</p>
         </div>
 
         {/* Title */}
@@ -204,7 +204,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp }) 
               </p>
             </div>
             <div className="text-center">
-              <p className="font-bold mt-12">For Fluoro Automation Seals Pvt Ltd</p>
+              <p className="font-bold mt-12">For Texawave Innovations Private Limited</p>
               <div className="border-t-2 border-black w-64 mx-auto mt-8 pt-2">
                 <p className="font-medium">Authorised Signatory</p>
               </div>

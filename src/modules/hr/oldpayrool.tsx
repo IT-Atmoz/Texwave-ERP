@@ -15,7 +15,7 @@ import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import fas from './fas.png';
+import texaLogo from './texaLogo.jpeg';
 
 interface Employee {
   id: string;
@@ -611,7 +611,7 @@ export default function PayrollPreparation() {
     const doc = new jsPDF();
     
     const img = new Image();
-    img.src = fas;
+    img.src = texaLogo;
     
     await new Promise((resolve) => {
       img.onload = resolve;

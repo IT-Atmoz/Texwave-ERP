@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import fas from '../modules/sales/fas.png';
+import texaLogo from '../modules/sales/texaLogo.jpeg';
 
 interface Branch {
   id: string;
@@ -159,14 +159,14 @@ export default function QuotationPrintTemplate({ quotation }: QuotationPrintProp
         background: '#ffffff',
         gap: '12px'
       }}>
-        <img src={fas} alt="FAS Logo" style={{ width: '75px', height: 'auto', flexShrink: 0 }} />
+        <img src={texaLogo} alt="Texawave Logo" style={{ width: '75px', height: 'auto', flexShrink: 0 }} />
         <div style={{ textAlign: 'center', flex: 1 }}>
           <h1 style={{ fontSize: '20px', fontWeight: '900', margin: 0, color: '#000', lineHeight: 1.2 }}>
-            Fluoro Automation Seals Pvt Ltd
+            Texawave Innovations Private Limited
           </h1>
           <p style={{ fontSize: '9.5px', margin: '3px 0 0 0', color: '#000', lineHeight: 1.3, fontWeight: '600' }}>
-            3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India<br/>
-            Phone: +91-841175097 | Email: fas@fluoroautomationseals.com
+            No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020<br/>
+            Phone: +91-9841175097 | Email: info@texawave.in
           </p>
         </div>
       </div>
@@ -185,15 +185,15 @@ export default function QuotationPrintTemplate({ quotation }: QuotationPrintProp
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span style={{ fontWeight: '900' }}>GSTIN:</span>
-          <span>33AAECF2716M1ZO</span>
+          <span>33AAMCT4293K1ZU</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span style={{ fontWeight: '900' }}>PAN:</span>
-          <span>AAECF2716M</span>
+          <span>AAMCT4293K</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span style={{ fontWeight: '900' }}>CIN:</span>
-          <span>U25209TN2020PTC138498</span>
+          <span>U74999TN2020PTC138498</span>
         </div>
       </div>
     </>
@@ -487,8 +487,16 @@ export default function QuotationPrintTemplate({ quotation }: QuotationPrintProp
                       </p>
                     </div>
 
-                    <div style={{ marginTop: '16px' }}>
-                      <p style={{ fontWeight: '900', fontSize: '10px', marginBottom: '20px' }}>For Fluoro Automation Seals Pvt Ltd</p>
+                    <div style={{ marginTop: '10px', fontSize: '8px' }}>
+                      <p style={{ fontWeight: '900', fontSize: '8.5px', marginBottom: '3px' }}>ACCOUNTS DETAILS</p>
+                      <p style={{ margin: '1px 0', fontWeight: '700' }}><strong>Bank Name:</strong> IDFC First Bank</p>
+                      <p style={{ margin: '1px 0', fontWeight: '700' }}><strong>Account No:</strong> 10258311882</p>
+                      <p style={{ margin: '1px 0', fontWeight: '700' }}><strong>Branch:</strong> Kottivakkam Branch</p>
+                      <p style={{ margin: '1px 0', fontWeight: '700' }}><strong>IFSC Code:</strong> IDFB0080138</p>
+                    </div>
+
+                    <div style={{ marginTop: '12px' }}>
+                      <p style={{ fontWeight: '900', fontSize: '10px', marginBottom: '20px' }}>For Texawave Innovations Private Limited</p>
                       <div style={{ borderTop: '2px solid #000', width: '150px', paddingTop: '5px' }}>
                         <p style={{ fontWeight: '900', fontSize: '8.5px' }}>Authorised Signatory</p>
                       </div>

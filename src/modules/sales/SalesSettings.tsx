@@ -13,14 +13,14 @@ import { getRecord, updateRecord, createRecord } from '@/services/firebase';
 
 export default function SalesSettingsPage() {
   const [settings, setSettings] = useState<SalesSettings>({
-    companyName: 'Fluoro Automation Seals Pvt Ltd',
-    companyAddress: '3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India',
+    companyName: 'Texawave Innovations Private Limited',
+    companyAddress: 'No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020',
     companyPhone: '+91-9841175097',
-    companyEmail: 'fas@fluoroautomationseals.com',
+    companyEmail: 'info@texawave.in',
     companyWebsite: '',
-    companyGSTIN: '33AAECF2716M1ZO',
-    companyPAN: 'AAECF2716M',
-    companyCIN: 'U25209TN2020PTC138498',
+    companyGSTIN: '33AAMCT4293K1ZU',
+    companyPAN: 'AAMCT4293K',
+    companyCIN: 'U74999TN2020PTC138498',
     defaultDeliveryTerm: '1 to 2 Weeks From Receipt of Order',
     defaultPaymentTerms: '30 Days',
     defaultModeOfDispatch: 'Courier',

@@ -21,7 +21,7 @@ import {
   updateRecord,
   deleteRecord,
 } from "@/services/firebase"
-import fas from "./fas.png"
+import texaLogo from "./texaLogo.jpeg"
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹",
@@ -119,7 +119,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
       const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
       const fy = `${fyStart}-${String(fyStart + 1).slice(-2)}`
       const seq = String(Date.now()).slice(-5)
-      setInvoiceNumber(`FAS/${fy}/${seq}`)
+      setInvoiceNumber(`TW/IN/${fy}/${seq}`)
     }
   }, [isEditMode, invoiceNumber])
 
@@ -869,8 +869,8 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
       }}
     >
       <img
-        src={fas}
-        alt="FAS"
+        src={texaLogo}
+        alt="Texawave"
         style={{ width: "70px", height: "auto", margin: "0 auto 6px", display: "block" }}
         crossOrigin="anonymous"
       />
@@ -883,13 +883,13 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
           letterSpacing: "0.5px",
         }}
       >
-        Fluoro Automation Seals Pvt Ltd
+        Texawave Innovations Private Limited
       </h1>
       <p style={{ fontSize: "10px", margin: "2px 0", color: "#000", fontWeight: 600 }}>
-        3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+        No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020
       </p>
       <p style={{ fontSize: "10px", margin: "2px 0", color: "#000", fontWeight: 600 }}>
-        Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+        Phone: +91-9841175097 | Email: info@texawave.in
       </p>
     </div>
   )
@@ -2764,7 +2764,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                             fontWeight: 900,
                           }}
                         >
-                          For Fluoro Automation Seals Pvt Ltd
+                          For Texawave Innovations Private Limited
                         </p>
                         <div style={{ marginTop: "28px", textAlign: "right" }}>
                           <p
@@ -2849,8 +2849,8 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                 }}
               >
                 <img
-                  src={fas}
-                  alt="FAS"
+                  src={texaLogo}
+                  alt="Texawave"
                   style={{ width: "50px", height: "auto", margin: "0 auto 4px", display: "block" }}
                 />
                 <h1
@@ -2862,13 +2862,13 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Fluoro Automation Seals Pvt Ltd
+                  Texawave Innovations Private Limited
                 </h1>
                 <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
-                  3/180, Rajiv Gandhi Road, Mettukuppam, Chennai Tamil Nadu 600097 India
+                  No 93/206 Canal Bank Road, Indra Nagar, Adyar, Chennai - 600 020
                 </p>
                 <p style={{ fontSize: "8px", margin: "1px 0", color: "#000", fontWeight: 600 }}>
-                  Phone: 9841175097 | Email: fas@fluoroautomationseals.com
+                  Phone: +91-9841175097 | Email: info@texawave.in
                 </p>
               </div>
 
@@ -2884,9 +2884,9 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                   fontWeight: 700,
                 }}
               >
-                <div>GSTIN: 33AAECF2716M1ZO</div>
-                <div>CIN: U25209TN2020PTC138498</div>
-                <div>PAN: AAECF2716M</div>
+                <div>GSTIN: 33AAMCT4293K1ZU</div>
+                <div>CIN: U74999TN2020PTC138498</div>
+                <div>PAN: AAMCT4293K</div>
               </div>
 
               {/* DELIVERY CHALLAN TITLE */}
@@ -3122,7 +3122,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                       color: "#000",
                     }}
                   >
-                    Fluoro Automation Seals Pvt Ltd
+                    Texawave Innovations Private Limited
                   </p>
                   <pre
                     style={{
@@ -3134,13 +3134,13 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                       lineHeight: 1.3,
                     }}
                   >
-                    {"3/180, Rajiv Gandhi Road\nMettukuppam\nChennai, Tamil Nadu - 600097\nIndia"}
+                    {"No 93/206 Canal Bank Road, Indra Nagar\nAdyar, Chennai - 600 020"}
                   </pre>
                   <p style={{ margin: "2px 0", fontWeight: 700 }}>
                     <strong>State Code:</strong> 33
                   </p>
                   <p style={{ margin: "2px 0", fontWeight: 700 }}>
-                    <strong>GSTIN:</strong> 33AAECF2716M1ZO
+                    <strong>GSTIN:</strong> 33AAMCT4293K1ZU
                   </p>
                 </div>
 
@@ -3456,7 +3456,7 @@ const [transportChargePercent, setTransportChargePercent] = useState<number | ''
                         marginBottom: "15px",
                       }}
                     >
-                      For Fluoro Automation Seals Pvt Ltd
+                      For Texawave Innovations Private Limited
                     </p>
                     <p
                       style={{

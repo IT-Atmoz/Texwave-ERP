@@ -15,7 +15,7 @@ import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import fas from './fas.png';
+import texaLogo from './texaLogo.jpeg';
 
 interface Employee {
   id: string;
@@ -533,7 +533,7 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
 
     try {
       const img = new Image();
-      img.src = fas;
+      img.src = texaLogo;
       await new Promise((resolve) => (img.onload = resolve));
       const logoWidth = 40;
       const logoHeight = 20;
@@ -545,9 +545,9 @@ const recalculateRow = (row: PayrollRow, emp: Employee, totalDays: number): Payr
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    const companyName = 'FLUORO AUTOMATION SEALS PRIVATE LIMITED';
-    const companyAddress1 = '3/24, Survey No. 160/1, Pillaiyar Koil St,';
-    const companyAddress2 = 'Mettukuppam, Chennai - 600 097.';
+    const companyName = 'TEXAWAVE INNOVATIONS PRIVATE LIMITED';
+    const companyAddress1 = 'No 93/206 Canal Bank Road, Indra Nagar, Adyar,';
+    const companyAddress2 = 'Chennai - 600 020.';
 
     doc.text(companyName, pageWidth / 2, 35, { align: 'center' });
     doc.setFont('helvetica', 'normal');
