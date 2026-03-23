@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Lock, User, ArrowRight } from 'lucide-react';
@@ -16,16 +15,12 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const success = await login(identifier, password);
-
       if (success) {
-        // LoginRoute / EmployeeProtectedRoute will redirect automatically
-        // when AuthContext user state updates — no manual navigate needed.
-        setLoading(false);
+        sessionStorage.setItem('justLoggedIn', '1');
       } else {
-        toast.error('Invalid username/email or password');
+        toast.error('Invalid username or password');
         setLoading(false);
       }
     } catch {
@@ -36,31 +31,60 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(135deg, hsl(108,55%,10%) 0%, hsl(108,45%,16%) 50%, hsl(93,40%,22%) 100%)' }}
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: 'hsl(215, 28%, 97%)' }}
     >
-      <div className="w-full max-w-md">
-        {/* Logo & Title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-xl mb-4 p-2">
-            <img src="/Texa_Logo.jpeg" alt="Texawave Logo" className="w-full h-full object-contain" />
+      {/* Soft background blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-[0.06]"
+          style={{ background: 'radial-gradient(circle, hsl(152,70%,42%), transparent 70%)' }}
+        />
+        <div
+          className="absolute -bottom-60 -left-40 w-[700px] h-[700px] rounded-full opacity-[0.05]"
+          style={{ background: 'radial-gradient(circle, hsl(222,47%,40%), transparent 70%)' }}
+        />
+        <div
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full opacity-[0.04]"
+          style={{ background: 'radial-gradient(circle, hsl(152,60%,36%), transparent 70%)' }}
+        />
+      </div>
+
+      <div className="w-full max-w-[400px] relative z-10 animate-fade-in-up">
+
+        {/* Logo & branding */}
+        <div className="text-center mb-7">
+          <div
+            className="inline-flex items-center justify-center w-[72px] h-[72px] rounded-2xl mb-4 overflow-hidden shadow-lg"
+            style={{
+              background: 'white',
+              boxShadow: '0 8px 32px -8px rgb(0 0 0 / 0.12), 0 2px 8px -2px rgb(0 0 0 / 0.08)',
+            }}
+          >
+            <img src="/Texa_Logo.jpeg" alt="Texawave Logo" className="w-14 h-14 object-contain" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Texawave ERP</h1>
-          <p className="text-white/60 text-sm mt-1">Enterprise Resource Planning</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Texawave ERP</h1>
+          <p className="text-slate-400 text-sm mt-1">Enterprise Resource Planning</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl border border-white/10 p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
-            <p className="text-gray-500 text-sm mt-1">Sign in to access your account</p>
+        {/* Card */}
+        <div
+          className="bg-white rounded-2xl p-7 border border-slate-200/80"
+          style={{ boxShadow: '0 4px 24px -6px rgb(0 0 0 / 0.08), 0 2px 8px -2px rgb(0 0 0 / 0.05)' }}
+        >
+          <div className="mb-5">
+            <h2 className="text-[18px] font-bold text-slate-900">Welcome back</h2>
+            <p className="text-slate-500 text-sm mt-0.5">Sign in to access your account</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="identifier" className="text-sm font-semibold text-gray-700">Email or Username</Label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email / Username */}
+            <div className="space-y-1.5">
+              <Label htmlFor="identifier" className="text-[13px] font-semibold text-slate-700">
+                Email or Username
+              </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   id="identifier"
                   type="text"
@@ -68,15 +92,21 @@ export default function Login() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  className="pl-10 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-primary transition-colors"
+                  className="pl-9 h-[42px] bg-slate-50/80 border-slate-200 text-slate-900
+                    placeholder:text-slate-400 rounded-lg
+                    focus:bg-white focus:border-primary/60 focus:ring-2 focus:ring-primary/15
+                    transition-all duration-200"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password</Label>
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[13px] font-semibold text-slate-700">
+                Password
+              </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -84,70 +114,79 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10 pr-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-primary transition-colors"
+                  className="pl-9 pr-10 h-[42px] bg-slate-50/80 border-slate-200 text-slate-900
+                    placeholder:text-slate-400 rounded-lg
+                    focus:bg-white focus:border-primary/60 focus:ring-2 focus:ring-primary/15
+                    transition-all duration-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-400
+                    hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button
+            {/* Submit */}
+            <button
               type="submit"
-              className="w-full h-12 text-base font-semibold shadow-lg transition-all"
               disabled={loading}
+              className="w-full h-[42px] mt-1 rounded-lg font-semibold text-sm text-white
+                flex items-center justify-center gap-2 transition-all duration-200
+                hover:brightness-105 hover:shadow-lg hover:-translate-y-0.5
+                active:translate-y-0 active:brightness-95
+                disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              style={{
+                background: 'linear-gradient(135deg, hsl(152,76%,30%), hsl(152,70%,42%))',
+                boxShadow: '0 4px 14px -3px hsl(152,70%,36%,0.45)',
+              }}
             >
               {loading ? (
-                <span className="flex items-center gap-2">
+                <>
                   <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Signing in...
-                </span>
+                </>
               ) : (
-                <span className="flex items-center gap-2">
+                <>
                   Sign In
                   <ArrowRight className="h-4 w-4" />
-                </span>
+                </>
               )}
-            </Button>
+            </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-xs text-gray-400 text-center mb-3 font-medium uppercase tracking-wider">Demo Credentials</p>
+          {/* Demo credentials */}
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center mb-3">
+              Demo Credentials
+            </p>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => { setIdentifier('admin'); setPassword('admin123'); }}
-                className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors text-left group cursor-pointer"
-              >
-                <p className="font-semibold text-sm text-primary group-hover:text-primary/80">admin</p>
-                <p className="text-xs text-primary/60">All access</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIdentifier('sales'); setPassword('sales123'); }}
-                className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors text-left group cursor-pointer"
-              >
-                <p className="font-semibold text-sm text-primary group-hover:text-primary/80">sales</p>
-                <p className="text-xs text-primary/60">Sales only</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIdentifier('hr'); setPassword('hr123'); }}
-                className="p-2.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors text-left group cursor-pointer"
-              >
-                <p className="font-semibold text-sm text-primary group-hover:text-primary/80">hr</p>
-                <p className="text-xs text-primary/60">HR only</p>
-              </button>
+              {[
+                { id: 'admin', pass: 'admin123', label: 'admin', sub: 'All access' },
+                { id: 'sales', pass: 'sales123', label: 'sales', sub: 'Sales only' },
+                { id: 'hr',    pass: 'hr123',    label: 'hr',    sub: 'HR only' },
+              ].map(({ id, pass, label, sub }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => { setIdentifier(id); setPassword(pass); }}
+                  className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-primary/5
+                    hover:border-primary/30 transition-all text-left group"
+                >
+                  <p className="text-sm font-semibold text-slate-700 group-hover:text-primary transition-colors">
+                    {label}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        <p className="text-center text-xs text-white/40 mt-6">
+        <p className="text-center text-[11px] text-slate-400 mt-5">
           Texawave Pvt Ltd &copy; {new Date().getFullYear()}. All rights reserved.
         </p>
       </div>
