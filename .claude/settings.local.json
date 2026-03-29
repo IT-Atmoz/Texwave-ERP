@@ -19,7 +19,9 @@
       "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && npm run build 2>&1)",
       "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && grep -r \"from 'sonner'\\\\|from \\\\\"sonner\\\\\"\\\\|from '@/hooks/use-toast'\" src/ --include=\"*.tsx\" --include=\"*.ts\" -l | head -10)",
       "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && grep -r \"from '@/hooks/use-toast'\" src/ --include=\"*.tsx\" --include=\"*.ts\" -l | head -5)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(python3 -c \"import sys,json; old=json.load\\(open\\(''''/Users/lokesh/Documents/IT_Atmoz/TexaERP/Texa-missed-code/package.json''''\\)\\); new=json.loads\\(sys.stdin.read\\(\\)\\); added={k:v for k,v in new.get\\(''''dependencies'''',{}\\).items\\(\\) if k not in old.get\\(''''dependencies'''',{}\\)}; print\\(''''Added deps:'''', added\\)\")",
+      "Bash(npm install:*)"
     ]
   }
 }

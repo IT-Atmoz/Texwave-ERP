@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,11 @@ import {
   MapPin, User, FolderOpen, CheckCircle, XCircle,
   CalendarDays, ArrowRight, FileText, Sunrise, Navigation,
   LogIn, LogOut, Clock, Plus, Calendar,
+  Camera, X, ShieldCheck, ShieldX, Loader2,
 } from 'lucide-react';
+import { verifyFaceFromVideo, loadFaceModels, checkFacePosition, type FacePosition } from '@/utils/faceVerification';
+
+type CameraStep = 'idle' | 'preview' | 'verifying' | 'verified' | 'failed';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface AttendanceSession {
@@ -24,6 +28,8 @@ export interface AttendanceSession {
   lng?: number | null;
   checkOutLat?: number | null;
   checkOutLng?: number | null;
+  checkInPhotoUrl?: string | null;
+  checkOutPhotoUrl?: string | null;
 }
 
 export interface AttendanceRecord {
@@ -51,6 +57,7 @@ interface TimeLog {
 }
 
 type GpsStatus = 'idle' | 'getting' | 'got' | 'denied';
+type PendingAction = 'in' | 'out' | null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export function format12h(d: Date) {
@@ -84,8 +91,22 @@ export default function EmployeeDashboard() {
   // Attendance state
   const [record, setRecord] = useState<AttendanceRecord | null>(null);
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Camera + verification state
+  const [cameraStep, setCameraStep] = useState<CameraStep>('idle');
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [pendingLoc, setPendingLoc] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [verifyMessage, setVerifyMessage] = useState('');
+  const [facePosition, setFacePosition] = useState<FacePosition>('none');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const faceCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stopwatch — total time worked today (completed + current)
   const [totalElapsed, setTotalElapsed] = useState('00:00:00');
@@ -193,95 +214,184 @@ export default function EmployeeDashboard() {
     return () => unsub();
   }, [user?.employeeId]);
 
-  // ── GPS helper ─────────────────────────────────────────────────────────────
+  // ── Load employee profile photo & pre-load face models ────────────────────
+  useEffect(() => {
+    if (!user?.firebaseKey) return;
+    get(ref(database, `hr/employees/${user.firebaseKey}`)).then(snap => {
+      if (snap.exists()) setProfilePhotoUrl(snap.val().profilePhoto ?? null);
+    });
+    loadFaceModels().catch(() => {});
+  }, [user?.firebaseKey]);
+
+  // ── Camera: attach stream after video element mounts ──────────────────────
+  useEffect(() => {
+    if (cameraStep === 'preview' && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(console.error);
+    }
+  }, [cameraStep]);
+
+  useEffect(() => () => stopCamera(), []);
+
+  // ── Real-time face position polling ───────────────────────────────────────
+  useEffect(() => {
+    if (cameraStep === 'preview') {
+      faceCheckRef.current = setInterval(async () => {
+        if (videoRef.current && videoRef.current.videoWidth) {
+          const pos = await checkFacePosition(videoRef.current);
+          setFacePosition(pos);
+        }
+      }, 600);
+    } else {
+      if (faceCheckRef.current) { clearInterval(faceCheckRef.current); faceCheckRef.current = null; }
+      setFacePosition('none');
+    }
+    return () => { if (faceCheckRef.current) { clearInterval(faceCheckRef.current); faceCheckRef.current = null; } };
+  }, [cameraStep]);
+
+  // ── GPS ────────────────────────────────────────────────────────────────────
   const getLocation = (): Promise<{ lat: number; lng: number; accuracy: number } | null> =>
     new Promise(resolve => {
       if (!navigator.geolocation) { resolve(null); return; }
       setGpsStatus('getting');
       navigator.geolocation.getCurrentPosition(
         pos => {
+          setLat(pos.coords.latitude);
+          setLng(pos.coords.longitude);
           setAccuracy(pos.coords.accuracy);
           setGpsStatus('got');
           resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
         },
         () => { setGpsStatus('denied'); resolve(null); },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     });
 
-  // ── Check In ───────────────────────────────────────────────────────────────
-  const doCheckIn = async () => {
-    if (!user?.employeeId) return;
+  // ── Camera helpers ─────────────────────────────────────────────────────────
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      streamRef.current = stream;
+      setCameraStep('preview');
+    } catch (err) {
+      console.error('Camera error:', err);
+      toast.error('Camera access denied. Please allow camera permissions.');
+      setCameraStep('idle');
+      setPendingAction(null);
+      setPendingLoc(null);
+    }
+  }, []);
+
+  const cancelCamera = () => {
+    stopCamera(); setCapturedPhoto(null); setVerifyMessage('');
+    setCameraStep('idle'); setPendingAction(null); setPendingLoc(null); setGpsStatus('idle');
+  };
+
+  // ── Initiate: GPS + camera simultaneously ──────────────────────────────────
+  const handleCheckIn = async () => {
+    setPendingAction('in');
+    getLocation().then(loc => setPendingLoc(loc)).catch(() => {});
+    await startCamera();
+  };
+
+  const handleCheckOut = async () => {
+    setPendingAction('out');
+    getLocation().then(loc => setPendingLoc(loc)).catch(() => {});
+    await startCamera();
+  };
+
+  // ── One-click: capture frame + verify + commit ─────────────────────────────
+  const verifyAndSubmit = async () => {
+    const video = videoRef.current;
+    if (!video || !pendingAction) return;
+
+    setCameraStep('verifying');
+    setVerifyMessage('Verifying...');
+
+    const { frame, result } = await verifyFaceFromVideo(video, profilePhotoUrl);
+    setCapturedPhoto(frame.toDataURL('image/jpeg', 0.85));
+
+    if (!result.match) {
+      setCameraStep('failed');
+      setVerifyMessage(result.message);
+      return;
+    }
+
+    // Matched — commit
+    setCameraStep('verified');
+    setVerifyMessage(result.message);
     setActionLoading(true);
-    const loc = await getLocation();
-    if (!loc) toast.warning('No GPS — checking in without location');
+    stopCamera();
 
-    const now = new Date();
-    const nowMs = Date.now();
+    let loc = pendingLoc;
+    if (!loc && gpsStatus === 'getting') { loc = await getLocation(); setPendingLoc(loc); }
+
+    if (pendingAction === 'in') await commitCheckIn(loc);
+    else await commitCheckOut(loc);
+
+    setTimeout(() => {
+      setCapturedPhoto(null); setCameraStep('idle');
+      setPendingAction(null); setPendingLoc(null); setVerifyMessage('');
+      setActionLoading(false);
+    }, 1500);
+  };
+
+  const retryVerify = async () => { setCapturedPhoto(null); setVerifyMessage(''); await startCamera(); };
+
+  const commitCheckIn = async (loc: { lat: number; lng: number; accuracy: number } | null) => {
+    if (!user?.employeeId) return;
+    const now = new Date(); const nowMs = Date.now();
     const newSession: AttendanceSession = {
-      checkIn: format12h(now),
-      checkInMs: nowMs,
-      lat: loc?.lat ?? null,
-      lng: loc?.lng ?? null,
+      checkIn: format12h(now), checkInMs: nowMs,
+      lat: loc?.lat ?? null, lng: loc?.lng ?? null,
     };
-
     const existingSessions = record?.sessions ?? [];
-
     if (!record) {
       await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-        employeeId: user.employeeId,
-        employeeName: user.name,
-        date: today,
-        status: 'Present',
-        sessions: [newSession],
-        totalWorkedMs: 0,
-        checkIn: format12h(now),
-        createdAt: nowMs,
+        employeeId: user.employeeId, employeeName: user.name,
+        date: today, status: 'Present',
+        sessions: [newSession], totalWorkedMs: 0,
+        checkIn: format12h(now), createdAt: nowMs,
       });
     } else {
       await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-        sessions: [...existingSessions, newSession],
-        status: 'Present',
+        sessions: [...existingSessions, newSession], status: 'Present',
       });
     }
-
     toast.success(`Checked in at ${format12h(now)}`);
-    setActionLoading(false);
   };
 
-  // ── Check Out ──────────────────────────────────────────────────────────────
-  const doCheckOut = async () => {
+  const commitCheckOut = async (loc: { lat: number; lng: number; accuracy: number } | null) => {
     if (!user?.employeeId || !record) return;
-    setActionLoading(true);
-    const loc = await getLocation();
-    if (!loc) toast.warning('No GPS — checking out without location');
-
-    const now = new Date();
-    const nowMs = Date.now();
+    const now = new Date(); const nowMs = Date.now();
     const sessions = [...(record.sessions ?? [])];
     const lastIdx = sessions.length - 1;
-    const activeSession = sessions[lastIdx];
-    const sessionMs = nowMs - (activeSession.checkInMs ?? nowMs);
-    const prevTotal = record.totalWorkedMs ?? 0;
-
+    const active = sessions[lastIdx];
     sessions[lastIdx] = {
-      ...activeSession,
-      checkOut: format12h(now),
-      checkOutMs: nowMs,
-      checkOutLat: loc?.lat ?? null,
-      checkOutLng: loc?.lng ?? null,
+      ...active, checkOut: format12h(now), checkOutMs: nowMs,
+      checkOutLat: loc?.lat ?? null, checkOutLng: loc?.lng ?? null,
     };
-
     await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-      sessions,
-      totalWorkedMs: prevTotal + sessionMs,
-      checkOut: format12h(now),
-      checkOutAt: nowMs,
-      updatedAt: nowMs,
+      sessions, totalWorkedMs: (record.totalWorkedMs ?? 0) + (nowMs - (active.checkInMs ?? nowMs)),
+      checkOut: format12h(now), checkOutAt: nowMs, updatedAt: nowMs,
     });
-
     toast.success(`Checked out at ${format12h(now)}`);
-    setActionLoading(false);
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -289,6 +399,8 @@ export default function EmployeeDashboard() {
   const lastSession = sessions[sessions.length - 1];
   const isCheckedIn = sessions.length > 0 && !!lastSession && !lastSession.checkOut;
   const hasAnySession = sessions.length > 0;
+  const isCameraOpen = cameraStep !== 'idle';
+  const verifyFailed = cameraStep === 'failed';
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -368,18 +480,18 @@ export default function EmployeeDashboard() {
                 </div>
               )}
 
-              {/* GPS indicator */}
-              {gpsStatus === 'getting' && (
+              {/* GPS indicator — only shown when camera card is not open */}
+              {!isCameraOpen && gpsStatus === 'getting' && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600">
                   <Navigation className="h-3 w-3 animate-pulse" /> Getting location...
                 </div>
               )}
-              {gpsStatus === 'got' && accuracy !== null && (
+              {!isCameraOpen && gpsStatus === 'got' && accuracy !== null && (
                 <div className={`flex items-center gap-1.5 mt-2 text-xs ${accuracy < 50 ? 'text-green-600' : accuracy < 200 ? 'text-amber-500' : 'text-red-500'}`}>
                   <Navigation className="h-3 w-3" /> GPS ±{Math.round(accuracy)}m
                 </div>
               )}
-              {gpsStatus === 'denied' && (
+              {!isCameraOpen && gpsStatus === 'denied' && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-red-500">
                   <Navigation className="h-3 w-3" /> Location denied
                 </div>
@@ -388,32 +500,30 @@ export default function EmployeeDashboard() {
 
             {/* Right: action buttons */}
             <div className="sm:ml-auto flex flex-col items-center gap-3 w-full sm:w-auto">
-              {isCheckedIn ? (
-                <Button
-                  onClick={doCheckOut}
-                  disabled={actionLoading || gpsStatus === 'getting'}
-                  className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-amber-500 hover:bg-amber-600 text-white gap-2"
-                >
-                  {actionLoading
-                    ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking out...</>
-                    : <><LogOut className="h-5 w-5" />Check Out</>}
-                </Button>
-              ) : (
-                <Button
-                  onClick={doCheckIn}
-                  disabled={actionLoading || gpsStatus === 'getting'}
-                  className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-green-600 hover:bg-green-700 text-white gap-2"
-                >
-                  {actionLoading
-                    ? <><span className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Checking in...</>
-                    : <><LogIn className="h-5 w-5" />{hasAnySession ? 'Check In Again' : 'Check In'}</>}
-                </Button>
+              {cameraStep === 'idle' && (
+                <>
+                  {isCheckedIn ? (
+                    <Button
+                      onClick={handleCheckOut}
+                      disabled={actionLoading}
+                      className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                    >
+                      <LogOut className="h-5 w-5" />Check Out
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleCheckIn}
+                      disabled={actionLoading}
+                      className="h-16 w-48 text-base font-bold rounded-2xl shadow-lg bg-green-600 hover:bg-green-700 text-white gap-2"
+                    >
+                      <LogIn className="h-5 w-5" />{hasAnySession ? 'Check In Again' : 'Check In'}
+                    </Button>
+                  )}
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Face verification &amp; GPS required
+                  </p>
+                </>
               )}
-              <p className="text-[11px] text-muted-foreground text-center">
-                {isCheckedIn ? 'You can check out and check in again anytime'
-                  : hasAnySession ? 'You can check in multiple times'
-                    : 'GPS location will be captured'}
-              </p>
             </div>
           </div>
 
@@ -460,6 +570,140 @@ export default function EmployeeDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Camera + face verification card ── */}
+      {cameraStep !== 'idle' && (
+        <Card className={`border-2 shadow-md ${verifyFailed ? 'border-red-400' : cameraStep === 'verified' ? 'border-green-400' : 'border-primary/40'}`}>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Camera className="h-4 w-4 text-primary" />
+                {cameraStep === 'preview' && `Face verification — ${pendingAction === 'in' ? 'Check In' : 'Check Out'}`}
+                {cameraStep === 'captured' && 'Confirm your photo'}
+                {cameraStep === 'verifying' && !capturedPhoto && 'Extracting face...'}
+                {cameraStep === 'verifying' && capturedPhoto && 'Verifying identity...'}
+                {cameraStep === 'verified' && 'Identity verified'}
+                {cameraStep === 'failed' && 'Verification failed'}
+              </div>
+              <button onClick={cancelCamera} className="text-muted-foreground hover:text-destructive transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Live camera preview */}
+            {cameraStep === 'preview' && (
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative w-52 h-64 rounded-2xl overflow-hidden bg-black shadow-lg">
+                  <video ref={videoRef} autoPlay playsInline muted
+                    className="absolute inset-0 w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                  {/* Oval face guide — color reflects position */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className={`w-36 h-44 rounded-full border-[3px] transition-colors duration-300
+                      ${facePosition === 'ready' ? 'border-green-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]'
+                        : facePosition === 'off-center' || facePosition === 'too-small' ? 'border-red-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]'
+                        : 'border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]'}`}
+                    />
+                  </div>
+                  {/* Status hint */}
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors
+                      ${facePosition === 'ready' ? 'bg-green-500/80 text-white'
+                        : facePosition === 'off-center' ? 'bg-red-500/80 text-white'
+                        : facePosition === 'too-small' ? 'bg-amber-500/80 text-white'
+                        : 'bg-black/60 text-white/80'}`}>
+                      {facePosition === 'ready' && '✓ Face centered — ready'}
+                      {facePosition === 'off-center' && 'Center your face in the oval'}
+                      {facePosition === 'too-small' && 'Move closer to the camera'}
+                      {facePosition === 'none' && 'Align face inside oval'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Verifying spinner (no photo yet) */}
+            {cameraStep === 'verifying' && !capturedPhoto && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Comparing faces...</p>
+              </div>
+            )}
+
+            {/* Captured snapshot with overlay */}
+            {capturedPhoto && (
+              <div className="flex justify-center">
+                <div className="relative w-52 h-64 rounded-2xl overflow-hidden shadow-lg bg-muted">
+                  <img src={capturedPhoto} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
+                  {cameraStep === 'verifying' && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="h-10 w-10 text-white animate-spin" />
+                    </div>
+                  )}
+                  {cameraStep === 'verified' && (
+                    <div className="absolute inset-0 bg-green-900/40 flex items-center justify-center">
+                      <div className="bg-green-600 text-white rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg">
+                        <ShieldCheck className="h-5 w-5" /><span className="font-semibold text-sm">Verified</span>
+                      </div>
+                    </div>
+                  )}
+                  {cameraStep === 'failed' && (
+                    <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center">
+                      <div className="bg-red-600 text-white rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg">
+                        <ShieldX className="h-5 w-5" /><span className="font-semibold text-sm">Not Matched</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Verification message */}
+            {verifyMessage && (
+              <div className={`flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm ${verifyFailed ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {verifyFailed ? <ShieldX className="h-4 w-4 mt-0.5 flex-shrink-0" /> : <ShieldCheck className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                {verifyMessage}
+              </div>
+            )}
+
+            {/* GPS inline */}
+            <div className="flex items-center gap-2 text-xs px-1">
+              <Navigation className={`h-3 w-3 flex-shrink-0 ${gpsStatus === 'got' ? 'text-green-600' : gpsStatus === 'denied' ? 'text-red-400' : 'text-amber-400 animate-pulse'}`} />
+              <span className="text-muted-foreground">
+                {gpsStatus === 'getting' && 'Acquiring GPS...'}
+                {gpsStatus === 'got' && `GPS ready · ${lat?.toFixed(4)}, ${lng?.toFixed(4)}`}
+                {gpsStatus === 'denied' && 'GPS unavailable'}
+                {gpsStatus === 'idle' && 'GPS pending...'}
+              </span>
+            </div>
+
+            {cameraStep === 'preview' && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={verifyAndSubmit}
+                  disabled={actionLoading || facePosition !== 'ready'}
+                  className={`gap-2 text-white font-semibold px-8 transition-opacity
+                    ${facePosition === 'ready'
+                      ? pendingAction === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-gray-400 cursor-not-allowed'}`}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Verify &amp; {pendingAction === 'in' ? 'Check In' : 'Check Out'}
+                </Button>
+              </div>
+            )}
+            {cameraStep === 'verifying' && (
+              <Button disabled className="w-full gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />Verifying...
+              </Button>
+            )}
+            {cameraStep === 'failed' && (
+              <Button onClick={retryVerify} className="w-full gap-2">
+                <Camera className="h-4 w-4" />Try Again
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-3 gap-3">
