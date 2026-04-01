@@ -21,7 +21,13 @@
       "Bash(cd \"D:/Github/TexawaveERP/SalesFeature\" && grep -r \"from '@/hooks/use-toast'\" src/ --include=\"*.tsx\" --include=\"*.ts\" -l | head -5)",
       "Bash(npx vite:*)",
       "Bash(python3 -c \"import sys,json; old=json.load\\(open\\(''''/Users/lokesh/Documents/IT_Atmoz/TexaERP/Texa-missed-code/package.json''''\\)\\); new=json.loads\\(sys.stdin.read\\(\\)\\); added={k:v for k,v in new.get\\(''''dependencies'''',{}\\).items\\(\\) if k not in old.get\\(''''dependencies'''',{}\\)}; print\\(''''Added deps:'''', added\\)\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git stash:*)",
+      "Bash(npm run:*)",
+      "Bash(node -e \"const l = require\\(''''/Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/node_modules/lucide-react/dist/lucide-react.cjs.js''''\\); console.log\\(''''Sun:'''', !!l.Sun, ''''Moon:'''', !!l.Moon, ''''List:'''', !!l.List\\)\")",
+      "Bash(grep -c \"\"\"List\"\"\" /Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/node_modules/lucide-react/dist/lucide-react.d.ts)",
+      "Bash(kill %2)",
+      "Bash(grep -rn \"isActive\\\\|border-r\\\\|blue\\\\|after:\\\\|before:\" /Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/src/components/layout/*.tsx)"
     ]
   }
 }
