@@ -164,6 +164,16 @@ export default function WebCheckin() {
       }).catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
       streamRef.current = stream;
       setCameraStep('preview');
+      // Attach directly — useEffect won't re-fire if step was already 'preview'
+      const attach = () => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(console.error);
+        } else {
+          requestAnimationFrame(attach);
+        }
+      };
+      requestAnimationFrame(attach);
     } catch {
       toast.error('Camera access denied. Please allow camera permissions.');
       setCameraStep('idle'); setPendingAction(null); setPendingLoc(null);
