@@ -43,7 +43,7 @@ export default function HRLayout() {
       items: [
         { path: '/hr/employees', label: 'Employees', icon: Users },
         { path: '/hr/profile', label: 'Profiles', icon: UserCircle },
-        { path: '/hr/shifts', label: 'Shifts', icon: BriefcaseBusiness },
+        { path: '/hr/shifts', label: 'Location Privilege', icon: BriefcaseBusiness },
         { path: '/hr/org-chart', label: 'Org Chart', icon: GitBranch },
         { path: '/hr/time-logs', label: 'Work Logs', icon: ClipboardList },
       ],

@@ -1,11 +1,17 @@
 import { Outlet, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ref, get } from 'firebase/database';
+import { database } from '@/services/firebase';
 import {
   LayoutDashboard, MapPin, Clock, User, FolderOpen, LogOut,
   Calendar, CalendarDays, TicketCheck, Receipt, DoorOpen, ClipboardList,
 } from 'lucide-react';
+
+const isMobileDevice = () =>
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 const navGroups = [
   {
@@ -53,6 +59,43 @@ const navGroups = [
 
 export default function EmployeePortalLayout() {
   const { user, logout } = useAuth();
+  const [privilegeChecked, setPrivilegeChecked] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  // Check location privilege: if "office" and user is on mobile → block
+  useEffect(() => {
+    if (!isMobileDevice()) { setPrivilegeChecked(true); return; }
+    if (!user?.firebaseKey) { setPrivilegeChecked(true); return; }
+
+    get(ref(database, `hr/locationPrivilege/${user.firebaseKey}`)).then(snap => {
+      const privilege = snap.val() || 'office';
+      setBlocked(privilege === 'office');
+      setPrivilegeChecked(true);
+    }).catch(() => {
+      setBlocked(true); // default to office (blocked) on error
+      setPrivilegeChecked(true);
+    });
+  }, [user?.firebaseKey]);
+
+  if (!privilegeChecked) return null;
+
+  if (blocked) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full">
+          <div className="text-5xl mb-4">🖥️</div>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Desktop Access Only</h1>
+          <p className="text-gray-500 text-sm mb-6">
+            Your account is configured for office use. Please access the portal from a desktop computer.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-xs text-gray-500 mb-1">Need remote access?</p>
+            <p className="text-sm font-semibold text-gray-700">Contact your administrator</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // EmployeeProtectedRoute redirects to /login automatically when user becomes null
   const handleLogout = () => { logout(); };

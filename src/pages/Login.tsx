@@ -158,32 +158,6 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center mb-3">
-              Demo Credentials
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'admin', pass: 'admin123', label: 'admin', sub: 'All access' },
-                { id: 'sales', pass: 'sales123', label: 'sales', sub: 'Sales only' },
-                { id: 'hr',    pass: 'hr123',    label: 'hr',    sub: 'HR only' },
-              ].map(({ id, pass, label, sub }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => { setIdentifier(id); setPassword(pass); }}
-                  className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-primary/5
-                    hover:border-primary/30 transition-all text-left group"
-                >
-                  <p className="text-sm font-semibold text-slate-700 group-hover:text-primary transition-colors">
-                    {label}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-[11px] text-slate-400 mt-5">

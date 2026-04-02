@@ -27,11 +27,11 @@ const USERS: Record<string, { password: string; role: UserRole; name: string }> 
 
 // Role-based access control (fallback defaults)
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin: ['dashboard', 'contacts', 'sales', 'purchases', 'expenses', 'banking', 'accounting', 'hr', 'master', 'settings', 'reports'],
+  admin: ['dashboard', 'contacts', 'sales', 'purchases', 'expenses', 'banking', 'accounting', 'hr', 'projects', 'master', 'settings', 'reports'],
   sales: ['dashboard', 'contacts', 'sales', 'expenses'],
   hr: ['dashboard', 'hr'],
   accountant: ['dashboard', 'contacts', 'purchases', 'expenses', 'banking', 'accounting', 'sales'],
-  manager: ['dashboard', 'contacts', 'sales', 'purchases', 'expenses', 'hr'],
+  manager: ['dashboard', 'contacts', 'sales', 'purchases', 'expenses', 'hr', 'projects'],
   quality: ['dashboard'],
   production: ['dashboard'],
   employee: [],
@@ -65,7 +65,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const privRef = ref(database, 'settings/privileges');
     const unsub = onValue(privRef, (snap) => {
       if (snap.exists()) {
-        setPrivileges({ ...ROLE_PERMISSIONS, ...snap.val() });
+        // Merge: keep Firebase-stored perms but add any new modules from ROLE_PERMISSIONS defaults
+        const stored = snap.val() as Record<string, string[]>;
+        const merged: Record<string, string[]> = { ...ROLE_PERMISSIONS };
+        Object.keys(ROLE_PERMISSIONS).forEach((role) => {
+          if (stored[role]) {
+            const newDefaults = ROLE_PERMISSIONS[role].filter((m) => !stored[role].includes(m));
+            merged[role] = [...stored[role], ...newDefaults];
+          }
+        });
+        setPrivileges(merged);
       } else {
         setPrivileges(ROLE_PERMISSIONS);
       }
