@@ -65,7 +65,7 @@ const validatePhone = (v?: string) => !!v?.match(/^\d{10}$/);
 const validateEmail = (v?: string) => !!v?.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const religions = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Others'];
+// const religions = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Others'];
 const maritalStatusOptions = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 export default function EmployeeForm() {
@@ -109,7 +109,7 @@ export default function EmployeeForm() {
     initial: 'Mr',
     name: '',
     gender: '',
-    religion: '',
+    // religion: '',
     dob: '',
     age: 0,
     maritalStatus: '',
@@ -837,7 +837,7 @@ export default function EmployeeForm() {
                   <Input type="date" value={formData.joiningDate} onChange={(e) => setFormData((p) => ({ ...p, joiningDate: e.target.value }))} />
                   {errors.joiningDate && <p className="text-sm text-red-600 mt-1 flex items-center gap-1"><AlertTriangle className="h-4 w-4" />{errors.joiningDate}</p>}
                 </div>
-                <div>
+                {/* <div>
                   <Label>Office Location</Label>
                   <Select value={formData.officeType || 'OMR'} onValueChange={(v) => setFormData((p) => ({ ...p, officeType: v as any }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -846,11 +846,11 @@ export default function EmployeeForm() {
                       <SelectItem value="Kayar">Kayar</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <Label>Referred By</Label>
                   <Input value={formData.referredBy} onChange={(e) => setFormData((p) => ({ ...p, referredBy: e.target.value }))} />
-                </div>
+                </div> */}
                 <div>
                   <Label>Landline</Label>
                   <Input value={formData.landline} onChange={(e) => setFormData((p) => ({ ...p, landline: digitsOnly(e.target.value) }))} />
@@ -1056,13 +1056,13 @@ export default function EmployeeForm() {
                   <Label>Age (Auto)</Label>
                   <Input value={formData.age || 0} disabled className="bg-gray-100" />
                 </div>
-                <div>
+                {/* <div>
                   <Label>Religion</Label>
                   <Select value={formData.religion || ''} onValueChange={(v) => setFormData((p) => ({ ...p, religion: v }))}>
                     <SelectTrigger><SelectValue placeholder="Select religion" /></SelectTrigger>
                     <SelectContent>{religions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                   </Select>
-                </div>
+                </div> */}
                 <div>
                   <Label>Marital Status</Label>
                   <Select value={formData.maritalStatus || ''} onValueChange={(v) => setFormData((p) => ({ ...p, maritalStatus: v }))}>

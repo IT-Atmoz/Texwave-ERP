@@ -52,7 +52,7 @@ interface Employee {
   bloodGroup?: string;
   gender?: string;
   maritalStatus?: string;
-  religion?: string;
+  // religion?: string;
   languages?: string[];
   fatherName?: string;
   motherName?: string;
@@ -164,7 +164,7 @@ export default function Profile() {
           Gender: emp.gender || '',
           'Blood Group': emp.bloodGroup || '',
           'Marital Status': emp.maritalStatus || 'Single',
-          Religion: emp.religion || '',
+          // Religion: emp.religion || '',
           'Languages Known': emp.languages && emp.languages.length
             ? emp.languages.join(', ')
             : '',
@@ -221,7 +221,7 @@ export default function Profile() {
           'Previous Company': emp.previousCompany || '',
           'Previous Role': emp.previousRole || '',
           'Experience (Years)': emp.experienceYears || '',
-          'Referred By': emp.referredBy || '',
+          // 'Referred By': emp.referredBy || '',
         };
       });
 

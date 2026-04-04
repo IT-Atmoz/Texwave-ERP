@@ -107,7 +107,7 @@ export default function EmployeeOnboardingForm() {
     if (!form.bloodGroup) e.bloodGroup = 'Select blood group';
     if (!form.department) e.department = 'Select department';
     if (!form.role.trim()) e.role = 'Designation is required';
-    if (!form.officeType) e.officeType = 'Select office location';
+    // if (!form.officeType) e.officeType = 'Select office location';
     if (!form.joiningDate) e.joiningDate = 'Joining date is required';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -323,7 +323,7 @@ export default function EmployeeOnboardingForm() {
                 </div>
 
                 {/* Office Location */}
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <Label>Office Location <span className="text-red-500">*</span></Label>
                   <Select value={form.officeType} onValueChange={v => setField('officeType', v)}>
                     <SelectTrigger><SelectValue placeholder="Select office location" /></SelectTrigger>
@@ -332,7 +332,7 @@ export default function EmployeeOnboardingForm() {
                     </SelectContent>
                   </Select>
                   {errors.officeType && <p className="text-xs text-red-500">{errors.officeType}</p>}
-                </div>
+                </div> */}
 
                 {/* Joining Date */}
                 <div className="space-y-1">
@@ -357,14 +357,14 @@ export default function EmployeeOnboardingForm() {
               </div>
 
               {/* Referred By */}
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <Label>Referred By</Label>
                 <Input
                   value={form.referredBy}
                   onChange={e => setField('referredBy', e.target.value)}
                   placeholder="Name of the person who referred you"
                 />
-              </div>
+              </div> */}
 
               {/* Portal Password Section */}
               <div className="border rounded-lg p-4 bg-gray-50 space-y-4">

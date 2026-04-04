@@ -239,10 +239,10 @@ export default function MyProfile() {
                   <SelectContent>{bloodGroups.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <Label>Referred By</Label>
                 <Input value={form.referredBy || ''} onChange={e => setField('referredBy', e.target.value)} placeholder="Who referred you?" />
-              </div>
+              </div> */}
             </div>
           ) : (
             <>
@@ -250,7 +250,7 @@ export default function MyProfile() {
               <InfoRow label="Gender" value={emp?.gender} />
               <InfoRow label="Date of Birth" value={emp?.dob} />
               <InfoRow label="Blood Group" value={emp?.bloodGroup} />
-              <InfoRow label="Referred By" value={emp?.referredBy} />
+              {/* <InfoRow label="Referred By" value={emp?.referredBy} /> */}
             </>
           )}
         </CardContent>
@@ -317,20 +317,20 @@ export default function MyProfile() {
                 <Label>Joining Date</Label>
                 <Input type="date" value={form.joiningDate || ''} onChange={e => setField('joiningDate', e.target.value)} />
               </div>
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <Label>Office Location</Label>
                 <Select value={form.officeType || ''} onValueChange={v => setField('officeType', v)}>
                   <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
                   <SelectContent>{officeLocations.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
+              </div> */}
             </div>
           ) : (
             <>
               <InfoRow label="Department" value={emp?.department} />
               <InfoRow label="Designation" value={emp?.role} />
               <InfoRow label="Joining Date" value={emp?.joiningDate} />
-              <InfoRow label="Office Location" value={emp?.officeType} />
+              {/* <InfoRow label="Office Location" value={emp?.officeType} /> */}
               <InfoRow label="Project" value={emp?.project} />
             </>
           )}

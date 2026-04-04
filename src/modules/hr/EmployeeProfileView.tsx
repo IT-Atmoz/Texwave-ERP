@@ -51,7 +51,7 @@ interface Employee {
   bloodGroup?: string;
   gender?: string;
   maritalStatus?: string;
-  religion?: string;
+  // religion?: string;
   languages?: string[];
   fatherName?: string;
   motherName?: string;
@@ -260,7 +260,7 @@ export default function EmployeeProfileView() {
                 <div><span className="text-gray-600">Gender</span><p className="font-bold">{employee.gender || '—'}</p></div>
                 <div><span className="text-gray-600">Blood Group</span><p className="font-bold text-red-600 text-2xl">{employee.bloodGroup || '—'}</p></div>
                 <div><span className="text-gray-600">Marital Status</span><p className="font-bold">{employee.maritalStatus || 'Single'}</p></div>
-                <div><span className="text-gray-600">Religion</span><p className="font-bold flex items-center gap-2"><Church className="h-5 w-5" /> {employee.religion || '—'}</p></div>
+                {/* <div><span className="text-gray-600">Religion</span><p className="font-bold flex items-center gap-2"><Church className="h-5 w-5" /> {employee.religion || '—'}</p></div> */}
                 {employee.languages && employee.languages.length > 0 && (
                   <div><span className="text-gray-600">Languages Known</span><p className="font-bold flex items-center gap-2"><Languages className="h-5 w-5" /> {employee.languages.join(', ')}</p></div>
                 )}
@@ -453,12 +453,12 @@ export default function EmployeeProfileView() {
                       {employee.previousRole && <p className="text-gray-700">Role: {employee.previousRole}</p>}
                     </div>
                   )}
-                  {employee.referredBy && (
+                  {/* {employee.referredBy && (
                     <div>
                       <span className="text-gray-600">Referred By</span>
                       <p className="font-bold text-xl">{employee.referredBy}</p>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </section>
             )}

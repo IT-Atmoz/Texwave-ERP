@@ -302,7 +302,7 @@ export interface Employee {
   dateOfBirth?: string;
   bloodGroup?: string;
   maritalStatus?: string;
-  religion?: string;
+  // religion?: string;
   nationality?: string;
 
   // Office
