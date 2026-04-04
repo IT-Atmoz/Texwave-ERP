@@ -9,13 +9,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
-  ChevronLeft, ChevronRight, Navigation, LogIn, LogOut,
+  ChevronLeft, ChevronRight, LogIn, LogOut,
   Calendar, X, Clock, MapPin, ExternalLink,
 } from 'lucide-react';
 import {
   format12h, msToHMS, msToHM,
   type AttendanceSession, type AttendanceRecord,
 } from './EmployeeDashboard';
+import { CameraVerifyModal } from './CameraVerifyModal';
 
 // ─── Reverse geocoding (Nominatim – free, no API key) ────────────────────────
 const _geoCache = new Map<string, string>();
@@ -500,24 +501,23 @@ function DayDetailPanel({
   );
 }
 
-type GpsStatus = 'idle' | 'getting' | 'got' | 'denied';
-
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function MyAttendance() {
   const { user } = useAuth();
 
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [weekRecords, setWeekRecords] = useState<Record<string, AttendanceRecord | null>>({});
-  // Holidays keyed by YYYY-MM-DD
   const [holidays, setHolidays] = useState<Record<string, string>>({});
 
   // Today's live record
-  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
-  const [gpsStatus, setGpsStatus]     = useState<GpsStatus>('idle');
-  const [accuracy, setAccuracy]       = useState<number | null>(null);
+  const [todayRecord, setTodayRecord]   = useState<AttendanceRecord | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [elapsed, setElapsed]         = useState('00:00:00');
+  const [elapsed, setElapsed]           = useState('00:00:00');
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Camera verification
+  const [cameraAction, setCameraAction]     = useState<'in' | 'out' | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
 
   // Selected day for detail panel
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -607,56 +607,47 @@ export default function MyAttendance() {
     if (todayRecord) setWeekRecords(p => ({ ...p, [today]: todayRecord }));
   }, [todayRecord, today]);
 
-  // ── GPS ───────────────────────────────────────────────────────────────────
-  const getLocation = (): Promise<{ lat: number; lng: number; accuracy: number } | null> =>
-    new Promise(resolve => {
-      if (!navigator.geolocation) { resolve(null); return; }
-      setGpsStatus('getting');
-      navigator.geolocation.getCurrentPosition(
-        pos => { setAccuracy(pos.coords.accuracy); setGpsStatus('got'); resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }); },
-        () => { setGpsStatus('denied'); resolve(null); },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+  // ── Load profile photo for face verification ──────────────────────────────
+  useEffect(() => {
+    if (!user?.firebaseKey) return;
+    get(ref(database, `hr/employees/${user.firebaseKey}`)).then(snap => {
+      if (snap.exists()) setProfilePhotoUrl(snap.val().profilePhoto ?? null);
     });
+  }, [user?.firebaseKey]);
 
-  // ── Check In ──────────────────────────────────────────────────────────────
-  const doCheckIn = async () => {
-    if (!user?.employeeId) return;
+  // ── After camera verification passes — do the Firebase write ──────────────
+  const handleVerified = async (loc: { lat: number; lng: number; accuracy: number } | null) => {
+    const action = cameraAction;
+    setCameraAction(null);
+    if (!user?.employeeId || !action) return;
     setActionLoading(true);
-    const loc = await getLocation();
-    if (!loc) toast.warning('No GPS — checking in without location');
     const now = new Date(); const nowMs = Date.now();
-    const newSession: AttendanceSession = { checkIn: format12h(now), checkInMs: nowMs, lat: loc?.lat ?? null, lng: loc?.lng ?? null };
-    const existing = todayRecord?.sessions ?? [];
-    if (!todayRecord) {
-      await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-        employeeId: user.employeeId, employeeName: user.name, date: today, status: 'Present',
-        sessions: [newSession], totalWorkedMs: 0, checkIn: format12h(now), createdAt: nowMs,
+
+    if (action === 'in') {
+      const newSession: AttendanceSession = { checkIn: format12h(now), checkInMs: nowMs, lat: loc?.lat ?? null, lng: loc?.lng ?? null };
+      const existing = todayRecord?.sessions ?? [];
+      if (!todayRecord) {
+        await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+          employeeId: user.employeeId, employeeName: user.name, date: today, status: 'Present',
+          sessions: [newSession], totalWorkedMs: 0, checkIn: format12h(now), createdAt: nowMs,
+        });
+      } else {
+        await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), { sessions: [...existing, newSession], status: 'Present' });
+      }
+      toast.success(`Checked in at ${format12h(now)}`);
+    } else if (action === 'out' && todayRecord) {
+      const sessions = [...(todayRecord.sessions ?? [])];
+      const lastIdx  = sessions.length - 1;
+      const active   = sessions[lastIdx];
+      const sesMs    = nowMs - (active.checkInMs ?? nowMs);
+      sessions[lastIdx] = { ...active, checkOut: format12h(now), checkOutMs: nowMs, checkOutLat: loc?.lat ?? null, checkOutLng: loc?.lng ?? null };
+      await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+        sessions, totalWorkedMs: (todayRecord.totalWorkedMs ?? 0) + sesMs,
+        checkOut: format12h(now), checkOutAt: nowMs, updatedAt: nowMs,
       });
-    } else {
-      await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), { sessions: [...existing, newSession], status: 'Present' });
+      toast.success(`Checked out at ${format12h(now)}`);
     }
-    toast.success(`Checked in at ${format12h(now)}`);
-    setActionLoading(false);
-  };
 
-  // ── Check Out ─────────────────────────────────────────────────────────────
-  const doCheckOut = async () => {
-    if (!user?.employeeId || !todayRecord) return;
-    setActionLoading(true);
-    const loc = await getLocation();
-    if (!loc) toast.warning('No GPS — checking out without location');
-    const now = new Date(); const nowMs = Date.now();
-    const sessions  = [...(todayRecord.sessions ?? [])];
-    const lastIdx   = sessions.length - 1;
-    const active    = sessions[lastIdx];
-    const sesMs     = nowMs - (active.checkInMs ?? nowMs);
-    sessions[lastIdx] = { ...active, checkOut: format12h(now), checkOutMs: nowMs, checkOutLat: loc?.lat ?? null, checkOutLng: loc?.lng ?? null };
-    await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-      sessions, totalWorkedMs: (todayRecord.totalWorkedMs ?? 0) + sesMs,
-      checkOut: format12h(now), checkOutAt: nowMs, updatedAt: nowMs,
-    });
-    toast.success(`Checked out at ${format12h(now)}`);
     setActionLoading(false);
   };
 
@@ -708,14 +699,10 @@ export default function MyAttendance() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        {gpsStatus === 'getting' && (
+        {actionLoading && (
           <span className="text-xs text-amber-600 flex items-center gap-1">
-            <Navigation className="h-3 w-3 animate-pulse" /> Getting GPS...
-          </span>
-        )}
-        {gpsStatus === 'got' && accuracy !== null && (
-          <span className={`text-xs ${accuracy < 50 ? 'text-green-600' : 'text-amber-500'}`}>
-            GPS ±{Math.round(accuracy)}m
+            <span className="h-3 w-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            Saving...
           </span>
         )}
       </div>
@@ -731,8 +718,8 @@ export default function MyAttendance() {
           className="flex-1 text-xs text-muted-foreground bg-transparent outline-none placeholder:text-gray-400 min-w-0"
         />
         <button
-          onClick={isCheckedIn ? doCheckOut : doCheckIn}
-          disabled={actionLoading || gpsStatus === 'getting'}
+          onClick={() => setCameraAction(isCheckedIn ? 'out' : 'in')}
+          disabled={actionLoading}
           className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-60 whitespace-nowrap ${
             isCheckedIn
               ? 'bg-amber-500 hover:bg-amber-600 text-white'
@@ -969,6 +956,16 @@ export default function MyAttendance() {
           dateStr={selectedDay}
           record={weekRecords[selectedDay] ?? null}
           onClose={() => setSelectedDay(null)}
+        />
+      )}
+
+      {/* ── Camera verification modal ── */}
+      {cameraAction && (
+        <CameraVerifyModal
+          action={cameraAction}
+          profilePhotoUrl={profilePhotoUrl}
+          onVerified={handleVerified}
+          onCancel={() => setCameraAction(null)}
         />
       )}
     </div>

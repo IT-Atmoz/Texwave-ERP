@@ -25,8 +25,9 @@ import NotFound from "./pages/NotFound";
 import { getAllRecords } from "@/services/firebase";
 
 // HR Components
-import EmployeeTimesheet from "./modules/hr/EmployeeTimesheet";
+
 import Attendance from "./modules/hr/Attendance";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import EmployeeOnboardingForm from "./modules/hr/EmployeeOnboardingForm";
 
 // Contacts Module
@@ -98,6 +99,14 @@ import Holial from "./modules/hr/Holial";
 import FullMonthPresent from "./modules/hr/FMP";
 import BonusSheet from "./modules/hr/BonusSheet";
 import FMA from "./modules/hr/FMA";
+
+// Projects Module
+import ProjectsLayout from "./modules/projects/ProjectsLayout";
+import ProjectsDashboard from "./modules/projects/ProjectsDashboard";
+import ProjectList from "./modules/projects/ProjectList";
+import ProjectForm from "./modules/projects/ProjectForm";
+import ProjectDetail from "./modules/projects/ProjectDetail";
+import ProjectAnalytics from "./modules/projects/ProjectAnalytics";
 
 // Master Module
 import MasterLayout from "./modules/master/MasterLayout";
@@ -407,6 +416,38 @@ function ChatWidget() {
 }
 
 // =====================
+// MOBILE BLOCK
+// =====================
+const isMobileDevice = () =>
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+function MobileBlock({ children }: { children: React.ReactNode }) {
+  // Employee portal has its own per-employee privilege check — skip blocking here
+  const isEmployeePortal = window.location.pathname.startsWith('/employee');
+  if (isEmployeePortal) return <>{children}</>;
+
+  if (isMobileDevice()) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full">
+          <div className="text-5xl mb-4">🖥️</div>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Desktop Only</h1>
+          <p className="text-gray-500 text-sm mb-6">
+            This application is designed for desktop use only and is not accessible on mobile devices.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <p className="text-xs text-gray-500 mb-1">Need access?</p>
+            <p className="text-sm font-semibold text-gray-700">Contact your administrator</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// =====================
 // APP ROOT – UNCHANGED
 // =====================
 function App() {
@@ -415,6 +456,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <MobileBlock>
         <AuthProvider>
           <BrowserRouter>
             <Routes>
@@ -587,7 +629,9 @@ function App() {
                 path="/hr"
                 element={
                   <ProtectedRoute module="hr">
-                    <HRLayout />
+                    <ErrorBoundary>
+                      <HRLayout />
+                    </ErrorBoundary>
                   </ProtectedRoute>
                 }
               >
@@ -598,7 +642,7 @@ function App() {
                   <Route path="new" element={<EmployeeForm />} />
                   <Route path="edit/:id" element={<EmployeeForm />} />
                 </Route>
-                <Route path="attendance" element={<Attendance />} />
+                <Route path="attendance" element={<ErrorBoundary><Attendance /></ErrorBoundary>} />
                         <Route path="pf" element={<Pf />} />
                                 <Route path="esi" element={<Esi />} />
                 <Route path="holidays" element={<Holiday />} />
@@ -629,14 +673,6 @@ function App() {
                 <Route path="tasks" element={<TaskAssignment />} />
               </Route>
 
-              <Route
-                path="/hr/attendance/:employeeId/:month?"
-                element={
-                  <ProtectedRoute module="hr">
-                    <EmployeeTimesheet />
-                  </ProtectedRoute>
-                }
-              />
 
               {/* MASTER MODULE */}
               <Route
@@ -678,15 +714,23 @@ function App() {
                 <Route path="tasks" element={<MyTasks />} />
               </Route>
 
-              {/* Stub Routes */}
+              {/* PROJECTS MODULE */}
               <Route
                 path="/projects"
                 element={
                   <ProtectedRoute module="projects">
-                    <StubPage title="Projects Module" description="Coming soon..." />
+                    <ProjectsLayout />
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<ProjectsDashboard />} />
+                <Route path="list" element={<ProjectList />} />
+                <Route path="analytics" element={<ProjectAnalytics />} />
+                <Route path="new" element={<ProjectForm />} />
+                <Route path="edit/:id" element={<ProjectForm />} />
+                <Route path=":id" element={<ProjectDetail />} />
+              </Route>
               <Route
                 path="/settings"
                 element={
@@ -706,6 +750,7 @@ function App() {
             {/* <ChatWidget /> */}
           </BrowserRouter>
         </AuthProvider>
+        </MobileBlock>
       </TooltipProvider>
     </QueryClientProvider>
   );

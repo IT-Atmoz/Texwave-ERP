@@ -1,330 +1,153 @@
-'use client';
-
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { createRecord, updateRecord, deleteRecord, getAllRecords } from '@/services/firebase';
-import { useMasterData } from '@/context/MasterDataContext';
-
-// Types
-interface Shift {
-  
-  id: string;
-  shiftName: string;
-  startTime: string;
-  endTime: string;
-  assignedEmployees: string[];
-}
+import { ref, onValue, set } from 'firebase/database';
+import { database } from '@/services/firebase';
+import { getAllRecords } from '@/services/firebase';
+import { Building2, Wifi } from 'lucide-react';
 
 interface Employee {
   id: string;
   name: string;
   employeeId: string;
+  department?: string;
 }
 
-export default function ShiftManagement() {
-  const { masterData } = useMasterData();
+type Privilege = 'office' | 'remote';
 
-  const [shifts, setShifts] = useState<Shift[]>([]);
+export default function LocationPrivilege() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentShift, setCurrentShift] = useState<Shift | null>(null);
+  const [privileges, setPrivileges] = useState<Record<string, Privilege>>({});
+  const [saving, setSaving] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    shiftName: '',
-    startTime: '',
-    endTime: '',
-    assignedEmployees: [] as string[],
-  });
-
-
-  // Fetch data
+  // Load employees
   useEffect(() => {
-    fetchShifts();
-    fetchEmployees();
+    getAllRecords('hr/employees').then((data: any[]) => {
+      setEmployees((data || []).filter(e => e.status !== 'inactive'));
+    });
   }, []);
 
-  const fetchShifts = async () => {
-    try {
-      const data = await getAllRecords('hr/shifts');
-      // Ensure assignedEmployees is always an array
-      const safeShifts = (data || []).map((shift: any) => ({
-        ...shift,
-        assignedEmployees: shift.assignedEmployees || [],
-      }));
-      setShifts(safeShifts);
-    } catch (error) {
-      toast({ title: 'Failed to load shifts', variant: 'destructive' });
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const data = await getAllRecords('hr/employees');
-      setEmployees((data || []) as Employee[]);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.shiftName || !formData.startTime || !formData.endTime) {
-      toast({ title: 'Please fill all required fields', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      if (isEditing && currentShift) {
-        await updateRecord('hr/shifts', currentShift.id, formData);
-        toast({ title: 'Shift updated successfully' });
-      } else {
-        await createRecord('hr/shifts', formData);
-        toast({ title: 'Shift created successfully' });
-      }
-
-      resetForm();
-      setIsDialogOpen(false);
-      fetchShifts();
-    } catch (error) {
-      toast({ title: 'Operation failed', variant: 'destructive' });
-    }
-  };
-
-const handleEdit = (shift: Shift) => {
-  setCurrentShift(shift);
-
-  setFormData({
-    shiftName: shift.shiftName || '',
-    startTime: shift.startTime || '',
-    endTime: shift.endTime || '',
-    assignedEmployees: shift.assignedEmployees || [],
-  });
-
-  setIsEditing(true);
-  setIsDialogOpen(true);
-};
-
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this shift?')) return;
-
-    try {
-      await deleteRecord('hr/shifts', id);
-      toast({ title: 'Shift deleted successfully' });
-      fetchShifts();
-    } catch (error) {
-      toast({ title: 'Failed to delete shift', variant: 'destructive' });
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      shiftName: '',
-      startTime: '',
-      endTime: '',
-      assignedEmployees: [],
+  // Listen to privileges in real-time
+  useEffect(() => {
+    const privRef = ref(database, 'hr/locationPrivilege');
+    const unsub = onValue(privRef, (snap) => {
+      setPrivileges((snap.val() as Record<string, Privilege>) || {});
     });
-    setIsEditing(false);
-    setCurrentShift(null);
+    return () => unsub();
+  }, []);
+
+  const handleToggle = async (emp: Employee, value: Privilege) => {
+    setSaving(emp.id);
+    try {
+      await set(ref(database, `hr/locationPrivilege/${emp.id}`), value);
+      toast({ title: `${emp.name} set to ${value === 'office' ? 'Office (Desktop only)' : 'Remote (Mobile allowed)'}` });
+    } catch {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    } finally {
+      setSaving(null);
+    }
   };
 
-  const getEmployeeName = (empId: string) => {
-    const emp = employees.find((e) => e.id === empId);
-    return emp ? emp.name : 'Unknown';
-  };
-
-  // Safe access to master shifts
-  const availableShifts = masterData?.hr?.shifts || [];
+  const getPrivilege = (empId: string): Privilege => privileges[empId] || 'office';
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Shift Management</h1>
-          <p className="text-muted-foreground mt-1">Manage work shifts and assignments</p>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Location Privilege</h1>
+        <p className="text-muted-foreground mt-1">
+          Control where each employee can access the portal — Office (desktop only) or Remote (mobile allowed)
+        </p>
+      </div>
+
+      {/* Legend */}
+      <div className="flex gap-4">
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Office</p>
+            <p className="text-[11px] text-blue-500">Desktop access only</p>
+          </div>
         </div>
-
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Shift
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{isEditing ? 'Edit Shift' : 'Create New Shift'}</DialogTitle>
-            </DialogHeader>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label>Shift Name *</Label>
-                <Select
-                  value={formData.shiftName}
-                  onValueChange={(value) => setFormData({ ...formData, shiftName: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a shift" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableShifts.length === 0 ? (
-                      <SelectItem value="disabled" disabled>
-                        No shifts defined in master data
-                      </SelectItem>
-                    ) : (
-                      availableShifts.map((shift) => (
-                        <SelectItem key={shift} value={shift}>
-                          {shift}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Time *</Label>
-                  <Input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Time *</Label>
-                  <Input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="text-sm text-muted-foreground">
-                Employee assignment can be done later from employee profile or attendance module.
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {isEditing ? 'Update Shift' : 'Create Shift'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
+          <Wifi className="h-4 w-4 text-green-600" />
+          <div>
+            <p className="text-xs font-semibold text-green-700">Remote</p>
+            <p className="text-[11px] text-green-500">Mobile access allowed</p>
+          </div>
+        </div>
       </div>
 
-      {/* Shifts Table */}
-<Card>
-  <CardHeader>
-    <h3 className="text-lg font-semibold">All Shifts</h3>
-  </CardHeader>
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold">Employee Access Control</h3>
+        </CardHeader>
+        <CardContent className="p-0">
+          {employees.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">No employees found</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {employees.map(emp => {
+                const current = getPrivilege(emp.id);
+                const isSavingThis = saving === emp.id;
+                return (
+                  <div key={emp.id} className="flex items-center justify-between px-5 py-3.5">
+                    {/* Employee info */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{emp.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{emp.employeeId}{emp.department ? ` · ${emp.department}` : ''}</p>
+                      </div>
+                    </div>
 
-  <CardContent>
-    {shifts.length === 0 ? (
-      <div className="text-center py-12 text-muted-foreground">
-        No shifts created yet. Click "Create Shift" to add one.
-      </div>
-    ) : (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Shift Name</TableHead>
-            <TableHead>Timing</TableHead>
-            <TableHead>Assigned Employees</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {shifts.map((shift) => {
-            const empCount = (shift.assignedEmployees || []).length;
-
-            return (
-              <TableRow key={shift.id}>
-                <TableCell className="font-medium">{shift.shiftName}</TableCell>
-
-                <TableCell>
-                  {shift.startTime} – {shift.endTime}
-                </TableCell>
-
-                <TableCell>
-                  {empCount === 0 ? (
-                    <span className="text-muted-foreground">No one assigned</span>
-                  ) : (
-                    <span>
-                      {empCount} employee{empCount > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEdit(shift)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(shift.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {/* Toggle */}
+                    <div className="flex items-center gap-2">
+                      {isSavingThis && (
+                        <span className="h-4 w-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                      )}
+                      <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                        <button
+                          onClick={() => handleToggle(emp, 'office')}
+                          disabled={isSavingThis}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            current === 'office'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Building2 className="h-3.5 w-3.5" />
+                          Office
+                        </button>
+                        <button
+                          onClick={() => handleToggle(emp, 'remote')}
+                          disabled={isSavingThis}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border-l border-gray-200 transition-colors ${
+                            current === 'remote'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Wifi className="h-3.5 w-3.5" />
+                          Remote
+                        </button>
+                      </div>
+                      <Badge className={current === 'office'
+                        ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : 'bg-green-100 text-green-700 border-green-200'
+                      }>
+                        {current === 'office' ? 'Desktop only' : 'Mobile allowed'}
+                      </Badge>
+                    </div>
                   </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    )}
-  </CardContent>
-</Card>
-
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
