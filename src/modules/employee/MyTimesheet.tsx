@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useMasterData } from '@/context/MasterDataContext';
 import { database } from '@/services/firebase';
 import { ref, get, push, set, onValue } from 'firebase/database';
 import { format, getDaysInMonth, startOfMonth, getDay, addMonths, subMonths } from 'date-fns';
@@ -82,19 +83,6 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // Fallback when no attendance record exists (no cap applied)
 const FALLBACK_WORK_HOURS = 8;
 
-const DEPARTMENTS = [
-  'Production', 'Quality', 'HR', 'Sales', 'Stores', 'Finance',
-  'IT', 'Operations', 'Marketing', 'Design', 'Development',
-];
-
-const CATEGORIES = [
-  'Development', 'Design', 'Testing', 'Meeting', 'Documentation',
-  'Support', 'Research', 'Training', 'Review', 'Other',
-];
-
-const JOB_TYPES = [
-  'Full-Time', 'Part-Time', 'Contract', 'Freelance', 'Internship',
-];
 
 const statusColor: Record<string, string> = {
   Present:   'bg-green-100 text-green-700',
@@ -143,7 +131,14 @@ const emptyForm = (): LogForm => ({
 
 export default function MyTimesheet() {
   const { user } = useAuth();
+  const { masterData } = useMasterData();
   const now = new Date();
+
+  // Dynamic lists from master data
+  const departments  = masterData?.hr?.departments ?? [];
+  const categories   = masterData?.timesheet?.categories ?? [];
+  const projectNames = masterData?.projects ?? [];
+  const jobTypes     = masterData?.timesheet?.jobTypes ?? [];
 
   const [currentDate, setCurrentDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const month = currentDate.getMonth() + 1;
@@ -519,7 +514,7 @@ export default function MyTimesheet() {
                       {/* Hours logged indicator */}
                       {loggedHrs > 0 && (
                         <div className="text-[10px] text-muted-foreground mb-1 font-medium">
-                          {loggedHrs}h / {AVAILABLE_WORK_HOURS_PER_DAY}h
+                          {loggedHrs}h / {(attendanceHoursByDate[dateStr] ?? FALLBACK_WORK_HOURS).toFixed(1)}h
                         </div>
                       )}
 
@@ -675,7 +670,7 @@ export default function MyTimesheet() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEPARTMENTS.map(d => (
+                    {departments.map(d => (
                       <SelectItem key={d} value={d}>{d}</SelectItem>
                     ))}
                   </SelectContent>
@@ -690,7 +685,7 @@ export default function MyTimesheet() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map(c => (
+                    {categories.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>
@@ -703,12 +698,20 @@ export default function MyTimesheet() {
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Project Name <span className="text-destructive">*</span>
               </Label>
-              <Input
-                placeholder="Enter project name"
-                value={form.projectName}
-                onChange={e => updateForm('projectName', e.target.value)}
-                className="h-9"
-              />
+              <Select value={form.projectName} onValueChange={v => updateForm('projectName', v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectNames.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No projects in master list</div>
+                  ) : (
+                    projectNames.map(p => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Job Type + Hours */}
@@ -722,7 +725,7 @@ export default function MyTimesheet() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {JOB_TYPES.map(j => (
+                    {jobTypes.map(j => (
                       <SelectItem key={j} value={j}>{j}</SelectItem>
                     ))}
                   </SelectContent>

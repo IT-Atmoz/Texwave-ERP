@@ -221,8 +221,7 @@ export default function Profile() {
           'Previous Company': emp.previousCompany || '',
           'Previous Role': emp.previousRole || '',
           'Experience (Years)': emp.experienceYears || '',
-          // 'Referred By': emp.referredBy || '',
-        };
+s        };
       });
 
 

@@ -9,12 +9,18 @@ import { database } from '@/services/firebase';
 import { ref, set, get } from 'firebase/database';
 
 export default function HRMaster() {
-  const [departments, setDepartments] = useState<string[]>([]);
+  const [departments, setDepartments]   = useState<string[]>([]);
   const [designations, setDesignations] = useState<string[]>([]);
-  const [leaveTypes, setLeaveTypes] = useState<string[]>([]);
-  const [shifts, setShifts] = useState<string[]>([]);
+  const [leaveTypes, setLeaveTypes]     = useState<string[]>([]);
+  const [shifts, setShifts]             = useState<string[]>([]);
   const [employeeStatus, setEmployeeStatus] = useState<string[]>([]);
-  const [newItem, setNewItem] = useState('');
+
+  // Timesheet master fields
+  const [projects, setProjects]     = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [jobTypes, setJobTypes]     = useState<string[]>([]);
+
+  const [newItem, setNewItem]               = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,16 +28,48 @@ export default function HRMaster() {
   }, []);
 
   const loadMasterData = async () => {
-    const mastersRef = ref(database, 'masters/hr');
-    const snapshot = await get(mastersRef);
-    if (snapshot.exists()) {
-      const data = snapshot.val();
+    const [hrSnap, projSnap, catSnap, jobSnap] = await Promise.all([
+      get(ref(database, 'masters/hr')),
+      get(ref(database, 'masters/projects')),
+      get(ref(database, 'masters/timesheet/categories')),
+      get(ref(database, 'masters/timesheet/jobTypes')),
+    ]);
+
+    if (hrSnap.exists()) {
+      const data = hrSnap.val();
       setDepartments(data.departments || []);
       setDesignations(data.designations || []);
       setLeaveTypes(data.leaveTypes || []);
       setShifts(data.shifts || []);
       setEmployeeStatus(data.employeeStatus || []);
     }
+    if (projSnap.exists()) {
+      const v = projSnap.val();
+      setProjects(Array.isArray(v) ? v : Object.values(v));
+    }
+    if (catSnap.exists()) {
+      const v = catSnap.val();
+      setCategories(Array.isArray(v) ? v : Object.values(v));
+    }
+    if (jobSnap.exists()) {
+      const v = jobSnap.val();
+      setJobTypes(Array.isArray(v) ? v : Object.values(v));
+    }
+  };
+
+  // Returns the current list and Firebase path for a given section key
+  const getSectionConfig = (category: string): { list: string[]; path: string; setter: (v: string[]) => void } => {
+    const configs: Record<string, { list: string[]; path: string; setter: (v: string[]) => void }> = {
+      departments:    { list: departments,    path: 'masters/hr/departments',          setter: setDepartments },
+      designations:   { list: designations,   path: 'masters/hr/designations',         setter: setDesignations },
+      leaveTypes:     { list: leaveTypes,     path: 'masters/hr/leaveTypes',           setter: setLeaveTypes },
+      shifts:         { list: shifts,         path: 'masters/hr/shifts',               setter: setShifts },
+      employeeStatus: { list: employeeStatus, path: 'masters/hr/employeeStatus',       setter: setEmployeeStatus },
+      projects:       { list: projects,       path: 'masters/projects',                setter: setProjects },
+      categories:     { list: categories,     path: 'masters/timesheet/categories',    setter: setCategories },
+      jobTypes:       { list: jobTypes,       path: 'masters/timesheet/jobTypes',      setter: setJobTypes },
+    };
+    return configs[category];
   };
 
   const addItem = async (category: string) => {
@@ -39,63 +77,20 @@ export default function HRMaster() {
       toast({ title: 'Please enter a value', variant: 'destructive' });
       return;
     }
-
-    let list: string[] = [];
-    switch (category) {
-      case 'departments':
-        list = [...departments, newItem];
-        setDepartments(list);
-        break;
-      case 'designations':
-        list = [...designations, newItem];
-        setDesignations(list);
-        break;
-      case 'leaveTypes':
-        list = [...leaveTypes, newItem];
-        setLeaveTypes(list);
-        break;
-      case 'shifts':
-        list = [...shifts, newItem];
-        setShifts(list);
-        break;
-      case 'employeeStatus':
-        list = [...employeeStatus, newItem];
-        setEmployeeStatus(list);
-        break;
-    }
-
-    await set(ref(database, `masters/hr/${category}`), list);
+    const { list, path, setter } = getSectionConfig(category);
+    const updated = [...list, newItem.trim()];
+    setter(updated);
+    await set(ref(database, path), updated);
     setNewItem('');
     setEditingCategory(null);
     toast({ title: 'Item added successfully' });
   };
 
   const removeItem = async (category: string, index: number) => {
-    let list: string[] = [];
-    switch (category) {
-      case 'departments':
-        list = departments.filter((_, i) => i !== index);
-        setDepartments(list);
-        break;
-      case 'designations':
-        list = designations.filter((_, i) => i !== index);
-        setDesignations(list);
-        break;
-      case 'leaveTypes':
-        list = leaveTypes.filter((_, i) => i !== index);
-        setLeaveTypes(list);
-        break;
-      case 'shifts':
-        list = shifts.filter((_, i) => i !== index);
-        setShifts(list);
-        break;
-      case 'employeeStatus':
-        list = employeeStatus.filter((_, i) => i !== index);
-        setEmployeeStatus(list);
-        break;
-    }
-
-    await set(ref(database, `masters/hr/${category}`), list);
+    const { list, path, setter } = getSectionConfig(category);
+    const updated = list.filter((_, i) => i !== index);
+    setter(updated);
+    await set(ref(database, path), updated);
     toast({ title: 'Item removed successfully' });
   };
 
@@ -106,7 +101,7 @@ export default function HRMaster() {
           {title}
           <Button
             size="sm"
-            onClick={() => setEditingCategory(category)}
+            onClick={() => { setEditingCategory(category); setNewItem(''); }}
             className="bg-primary hover:bg-primary/90"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -120,8 +115,9 @@ export default function HRMaster() {
             <Input
               placeholder="Enter value"
               value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addItem(category)}
+              onChange={e => setNewItem(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addItem(category)}
+              autoFocus
             />
             <Button onClick={() => addItem(category)}>Add</Button>
             <Button variant="outline" onClick={() => { setEditingCategory(null); setNewItem(''); }}>
@@ -158,6 +154,15 @@ export default function HRMaster() {
         {renderList('Leave Types', leaveTypes, 'leaveTypes')}
         {renderList('Shifts', shifts, 'shifts')}
         {renderList('Employee Status', employeeStatus, 'employeeStatus')}
+      </div>
+
+      <div className="border-t pt-6">
+        <h2 className="text-base font-semibold text-foreground mb-4">Timesheet Master</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderList('Project Names', projects, 'projects')}
+          {renderList('Timesheet Categories', categories, 'categories')}
+          {renderList('Job Types', jobTypes, 'jobTypes')}
+        </div>
       </div>
     </div>
   );

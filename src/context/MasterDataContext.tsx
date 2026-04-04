@@ -25,6 +25,11 @@ const defaultMasterData: MasterData = {
     holidayList: ['2025-01-14', '2025-01-26', '2025-03-10'],
     employeeStatus: ['Active', 'Inactive', 'Resigned'],
   },
+  timesheet: {
+    categories: ['Development', 'Design', 'Testing', 'Meeting', 'Documentation', 'Support', 'Research', 'Training', 'Review', 'Other'],
+    jobTypes: ['Full-Time', 'Part-Time', 'Contract', 'Freelance', 'Internship'],
+  },
+  projects: [],
   quality: {
     rejectionReasons: ['Burr', 'Flash', 'Underweight', 'Dimension Issue', 'Improper Curing'],
     inspectionTypes: ['Incoming QC', 'In-Process QC', 'Final QC'],
@@ -101,6 +106,15 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             ...defaultMasterData.finance,
             ...(data.finance || {}),
           },
+          timesheet: {
+            ...defaultMasterData.timesheet,
+            ...(data.timesheet || {}),
+          },
+          projects: Array.isArray(data.projects)
+            ? data.projects
+            : data.projects
+              ? Object.values(data.projects)
+              : defaultMasterData.projects,
         };
         setMasterData(merged);
       } else {

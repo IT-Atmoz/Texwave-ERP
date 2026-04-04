@@ -489,6 +489,11 @@ export interface ScrapStock {
   createdAt: number;
 }
 
+export interface TimesheetMaster {
+  categories: string[];
+  jobTypes: string[];
+}
+
 export interface MasterData {
   sales: SalesMaster;
   hr: HRMaster;
@@ -496,6 +501,8 @@ export interface MasterData {
   production: ProductionMaster;
   stores: StoresMaster;
   finance: FinanceMaster;
+  timesheet: TimesheetMaster;
+  projects: string[];
 }
 
 export interface SalesMaster {
