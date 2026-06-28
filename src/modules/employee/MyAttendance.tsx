@@ -659,7 +659,7 @@ export default function MyAttendance() {
   // Week stats
   let fullDays = 0, halfDays = 0, shortDays = 0, leave = 0, weekends = 0;
   weekDays.forEach(d => {
-    if (getDay(d) === 0 || getDay(d) === 6) { weekends++; return; }
+    if (getDay(d) === 0) { weekends++; return; }
     const rec = weekRecords[format(d, 'yyyy-MM-dd')];
     if (rec?.status === 'Leave') { leave++; return; }
     if (rec?.status === 'Present') {
@@ -751,7 +751,7 @@ export default function MyAttendance() {
         {weekDays.map(day => {
           const ds        = format(day, 'yyyy-MM-dd');
           const rec       = weekRecords[ds] ?? null;
-          const isWknd    = getDay(day) === 0 || getDay(day) === 6;
+          const isWknd    = getDay(day) === 0;
           const isHoliday = !isWknd && (rec?.status === 'Holiday' || !!holidays[ds]);
           const isLeave   = !isWknd && !isHoliday && rec?.status === 'Leave';
           const todayDay  = isToday(day);

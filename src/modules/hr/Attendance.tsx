@@ -799,8 +799,8 @@ export default function Attendance() {
     today.setHours(0, 0, 0, 0);
     const dayTime = new Date(day);
     dayTime.setHours(0, 0, 0, 0);
-    const dayOfWeek = getDay(day); // 0=Sunday, 6=Saturday
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const dayOfWeek = getDay(day); // 0=Sunday only
+    const isWeekend = dayOfWeek === 0;
     const isFuture = dayTime > today;
 
     if (isWeekend) {
@@ -856,7 +856,7 @@ export default function Attendance() {
     let fullDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0;
     weekDays.forEach(day => {
       const dow = getDay(day);
-      if (dow === 0 || dow === 6) return;
+      if (dow === 0) return;
       const ds = format(day, 'yyyy-MM-dd');
       const rec = empForView ? (weekData[ds] || {})[empForView.id] as AttendanceRecord | undefined : undefined;
       if (!rec) { absentDays++; return; }
@@ -922,7 +922,7 @@ export default function Attendance() {
               {weekDays.map(day => {
                 const ds = format(day, 'yyyy-MM-dd');
                 const dow = getDay(day);
-                const isWknd = dow === 0 || dow === 6;
+                const isWknd = dow === 0;
                 const todayDay = isToday(day);
                 // Check by both push key and EMP000X for portal records
                 const dayMap = weekData[ds] || {};
@@ -1111,7 +1111,7 @@ export default function Attendance() {
     const getCalCellInfo = (day: Date) => {
       const ds  = format(day, 'yyyy-MM-dd');
       const dow = getDay(day);
-      const isWknd = dow === 0 || dow === 6;
+      const isWknd = dow === 0;
       const inCurrentMonth = isSameMonth(day, monthDate);
       if (!inCurrentMonth) return { label: '', subLabel: '', color: '', isWknd };
 
