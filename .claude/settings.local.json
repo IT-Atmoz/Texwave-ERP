@@ -27,7 +27,17 @@
       "Bash(node -e \"const l = require\\(''''/Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/node_modules/lucide-react/dist/lucide-react.cjs.js''''\\); console.log\\(''''Sun:'''', !!l.Sun, ''''Moon:'''', !!l.Moon, ''''List:'''', !!l.List\\)\")",
       "Bash(grep -c \"\"\"List\"\"\" /Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/node_modules/lucide-react/dist/lucide-react.d.ts)",
       "Bash(kill %2)",
-      "Bash(grep -rn \"isActive\\\\|border-r\\\\|blue\\\\|after:\\\\|before:\" /Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/src/components/layout/*.tsx)"
+      "Bash(grep -rn \"isActive\\\\|border-r\\\\|blue\\\\|after:\\\\|before:\" /Users/lokesh/Documents/IT_Atmoz/TexaERP-develop/src/components/layout/*.tsx)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel ls *)",
+      "Bash(vercel link *)",
+      "Bash(vercel *)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c ' *)",
+      "Bash(dig _vercel.texawave.com TXT +short)",
+      "Bash(dig erp.texawave.com CNAME +short)",
+      "Bash(curl *)"
     ]
   }
 }
