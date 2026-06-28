@@ -150,6 +150,8 @@ import HRDashboard from "./modules/hr/HRDashboard";
 import Approved from "./modules/hr/Approved";
 import Pf from "./modules/hr/Pf";
 import Esi from "./modules/hr/Esi";
+import Regularization from "./modules/hr/Regularization";
+import SalaryReport from "./modules/hr/SalaryReport";
 
 // Query Client
 const queryClient = new QueryClient();
@@ -650,6 +652,8 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="employees/profile/:id" element={<EmployeeProfileView />} />
                 <Route path="approval-attendance" element={<Approved />} />
+                <Route path="regularization" element={<Regularization />} />
+                <Route path="salary-report" element={<SalaryReport />} />
                 <Route path="full-month-present" element={<FullMonthPresent />} />
                 <Route path="full-month-absent" element={<FMA />} />
                 <Route path="bonus" element={<Bonus />} />

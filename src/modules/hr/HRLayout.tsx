@@ -53,6 +53,7 @@ export default function HRLayout() {
       items: [
         { path: '/hr/attendance', label: 'Attendance', icon: CalendarCheck },
         { path: '/hr/approval-attendance', label: 'Approval', icon: CheckCircle },
+        { path: '/hr/regularization', label: 'Regularization', icon: ClipboardList },
         { path: '/hr/full-month-present', label: 'Full Month Present', icon: CalendarDays },
         { path: '/hr/full-month-absent', label: 'Full Month Absent', icon: CircleOff },
       ],
@@ -69,6 +70,7 @@ export default function HRLayout() {
       label: 'PAYROLL & COMPLIANCE',
       items: [
         { path: '/hr/payroll', label: 'Payroll', icon: IndianRupee },
+        { path: '/hr/salary-report', label: 'Salary Report', icon: FileText },
         { path: '/hr/pf', label: 'PF', icon: ShieldCheck },
         { path: '/hr/esi', label: 'ESI', icon: ShieldPlus },
         { path: '/hr/loans', label: 'Loans', icon: HandCoins },

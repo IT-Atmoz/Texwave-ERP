@@ -226,8 +226,13 @@ export default function WebCheckin() {
     let loc = pendingLoc;
     if (!loc && gpsStatus === 'getting') { loc = await getLocation(); setPendingLoc(loc); }
 
-    if (pendingAction === 'in') await commitCheckIn(loc);
-    else await commitCheckOut(loc);
+    try {
+      if (pendingAction === 'in') await commitCheckIn(loc);
+      else await commitCheckOut(loc);
+    } catch (err) {
+      console.error('Attendance write failed:', err);
+      toast.error('Failed to save attendance. Please try again.');
+    }
 
     // Reset after short delay so user sees the verified state
     setTimeout(() => {

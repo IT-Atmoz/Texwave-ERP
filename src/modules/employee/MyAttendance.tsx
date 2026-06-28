@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { database } from '@/services/firebase';
-import { ref, onValue, get, set, update } from 'firebase/database';
+import { ref, onValue, get, set, update, push } from 'firebase/database';
 import {
   format, startOfWeek, endOfWeek, eachDayOfInterval,
   addWeeks, subWeeks, isToday, getDay,
@@ -11,12 +11,46 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, LogIn, LogOut,
   Calendar, X, Clock, MapPin, ExternalLink,
+  Plus, FileText, CheckCircle, XCircle, AlertCircle,
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   format12h, msToHMS, msToHM,
   type AttendanceSession, type AttendanceRecord,
 } from './EmployeeDashboard';
 import { CameraVerifyModal } from './CameraVerifyModal';
+import { notifyAdminFeed } from '@/services/notifications';
+
+// ─── Regularization types ─────────────────────────────────────────────────────
+type RegType = 'missed-checkin' | 'missed-checkout' | 'incorrect-time' | 'late-arrival' | 'early-departure';
+
+const REG_TYPE_LABELS: Record<RegType, string> = {
+  'missed-checkin':   'Missed Check-in',
+  'missed-checkout':  'Missed Check-out',
+  'incorrect-time':   'Incorrect Time',
+  'late-arrival':     'Late Arrival',
+  'early-departure':  'Early Departure',
+};
+
+interface RegRequest {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  type: RegType;
+  requestedCheckIn?: string;
+  requestedCheckOut?: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: number;
+  reviewedBy?: string;
+  reviewNote?: string;
+}
 
 // ─── Reverse geocoding (Nominatim – free, no API key) ────────────────────────
 const _geoCache = new Map<string, string>();
@@ -522,6 +556,19 @@ export default function MyAttendance() {
   // Selected day for detail panel
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  // Tab
+  const [activeTab, setActiveTab] = useState<'summary' | 'regularization'>('summary');
+
+  // Regularization
+  const [regRequests, setRegRequests] = useState<RegRequest[]>([]);
+  const [regDialogOpen, setRegDialogOpen] = useState(false);
+  const [regDate, setRegDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [regType, setRegType] = useState<RegType>('missed-checkin');
+  const [regCheckIn, setRegCheckIn] = useState('');
+  const [regCheckOut, setRegCheckOut] = useState('');
+  const [regReason, setRegReason] = useState('');
+  const [regSubmitting, setRegSubmitting] = useState(false);
+
   const today = format(new Date(), 'yyyy-MM-dd');
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd   = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -615,6 +662,56 @@ export default function MyAttendance() {
     });
   }, [user?.firebaseKey]);
 
+  // ── Load this employee's regularization requests ───────────────────────────
+  useEffect(() => {
+    if (!user?.employeeId) return;
+    const unsub = onValue(ref(database, 'hr/regularizationRequests'), snap => {
+      if (!snap.exists()) { setRegRequests([]); return; }
+      const list: RegRequest[] = Object.entries(snap.val())
+        .map(([id, v]: any) => ({ ...v, id }))
+        .filter((r: RegRequest) => r.employeeId === user.employeeId)
+        .sort((a: RegRequest, b: RegRequest) => b.submittedAt - a.submittedAt);
+      setRegRequests(list);
+    });
+    return () => unsub();
+  }, [user?.employeeId]);
+
+  const handleRegSubmit = async () => {
+    if (!user?.employeeId || !regReason.trim()) {
+      toast.error('Please fill in a reason');
+      return;
+    }
+    setRegSubmitting(true);
+    try {
+      const payload: Omit<RegRequest, 'id'> = {
+        employeeId: user.employeeId,
+        employeeName: user.name || '',
+        date: regDate,
+        type: regType,
+        requestedCheckIn: regCheckIn || undefined,
+        requestedCheckOut: regCheckOut || undefined,
+        reason: regReason.trim(),
+        status: 'pending',
+        submittedAt: Date.now(),
+      };
+      await push(ref(database, 'hr/regularizationRequests'), payload);
+      await notifyAdminFeed(
+        `Regularization Request — ${user.name}`,
+        `${REG_TYPE_LABELS[regType]} on ${regDate}. Reason: ${regReason.trim()}`,
+        'attendance',
+      );
+      toast.success('Regularization request submitted');
+      setRegDialogOpen(false);
+      setRegReason('');
+      setRegCheckIn('');
+      setRegCheckOut('');
+    } catch {
+      toast.error('Failed to submit request');
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
+
   // ── After camera verification passes — do the Firebase write ──────────────
   const handleVerified = async (loc: { lat: number; lng: number; accuracy: number } | null) => {
     const action = cameraAction;
@@ -623,32 +720,37 @@ export default function MyAttendance() {
     setActionLoading(true);
     const now = new Date(); const nowMs = Date.now();
 
-    if (action === 'in') {
-      const newSession: AttendanceSession = { checkIn: format12h(now), checkInMs: nowMs, lat: loc?.lat ?? null, lng: loc?.lng ?? null };
-      const existing = todayRecord?.sessions ?? [];
-      if (!todayRecord) {
-        await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-          employeeId: user.employeeId, employeeName: user.name, date: today, status: 'Present',
-          sessions: [newSession], totalWorkedMs: 0, checkIn: format12h(now), createdAt: nowMs,
+    try {
+      if (action === 'in') {
+        const newSession: AttendanceSession = { checkIn: format12h(now), checkInMs: nowMs, lat: loc?.lat ?? null, lng: loc?.lng ?? null };
+        const existing = todayRecord?.sessions ?? [];
+        if (!todayRecord) {
+          await set(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+            employeeId: user.employeeId, employeeName: user.name, date: today, status: 'Present',
+            sessions: [newSession], totalWorkedMs: 0, checkIn: format12h(now), createdAt: nowMs,
+          });
+        } else {
+          await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), { sessions: [...existing, newSession], status: 'Present' });
+        }
+        toast.success(`Checked in at ${format12h(now)}`);
+      } else if (action === 'out' && todayRecord) {
+        const sessions = [...(todayRecord.sessions ?? [])];
+        const lastIdx  = sessions.length - 1;
+        const active   = sessions[lastIdx];
+        const sesMs    = nowMs - (active.checkInMs ?? nowMs);
+        sessions[lastIdx] = { ...active, checkOut: format12h(now), checkOutMs: nowMs, checkOutLat: loc?.lat ?? null, checkOutLng: loc?.lng ?? null };
+        await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
+          sessions, totalWorkedMs: (todayRecord.totalWorkedMs ?? 0) + sesMs,
+          checkOut: format12h(now), checkOutAt: nowMs, updatedAt: nowMs,
         });
-      } else {
-        await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), { sessions: [...existing, newSession], status: 'Present' });
+        toast.success(`Checked out at ${format12h(now)}`);
       }
-      toast.success(`Checked in at ${format12h(now)}`);
-    } else if (action === 'out' && todayRecord) {
-      const sessions = [...(todayRecord.sessions ?? [])];
-      const lastIdx  = sessions.length - 1;
-      const active   = sessions[lastIdx];
-      const sesMs    = nowMs - (active.checkInMs ?? nowMs);
-      sessions[lastIdx] = { ...active, checkOut: format12h(now), checkOutMs: nowMs, checkOutLat: loc?.lat ?? null, checkOutLng: loc?.lng ?? null };
-      await update(ref(database, `hr/attendance/${today}/${user.employeeId}`), {
-        sessions, totalWorkedMs: (todayRecord.totalWorkedMs ?? 0) + sesMs,
-        checkOut: format12h(now), checkOutAt: nowMs, updatedAt: nowMs,
-      });
-      toast.success(`Checked out at ${format12h(now)}`);
+    } catch (err) {
+      console.error('Attendance write failed:', err);
+      toast.error('Failed to save attendance. Please try again.');
+    } finally {
+      setActionLoading(false);
     }
-
-    setActionLoading(false);
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -679,16 +781,90 @@ export default function MyAttendance() {
 
       {/* ── Tabs ── */}
       <div className="flex items-center border-b border-border px-5 pt-3 gap-6 shrink-0">
-        <button className="text-sm font-semibold text-primary border-b-2 border-primary pb-2.5 -mb-px">
+        <button
+          onClick={() => setActiveTab('summary')}
+          className={`text-sm pb-2.5 -mb-px transition-colors ${activeTab === 'summary' ? 'font-semibold text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+        >
           Attendance Summary
         </button>
-        <button className="text-sm text-muted-foreground pb-2.5 hover:text-foreground transition-colors">
+        <button
+          onClick={() => setActiveTab('regularization')}
+          className={`text-sm pb-2.5 -mb-px transition-colors flex items-center gap-1.5 ${activeTab === 'regularization' ? 'font-semibold text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+        >
           Regularization
+          {regRequests.filter(r => r.status === 'pending').length > 0 && (
+            <span className="h-4 w-4 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {regRequests.filter(r => r.status === 'pending').length}
+            </span>
+          )}
         </button>
       </div>
 
+      {/* ── Regularization tab ── */}
+      {activeTab === 'regularization' && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">My Regularization Requests</h3>
+              <p className="text-xs text-muted-foreground">Raise a request for missed or incorrect attendance entries</p>
+            </div>
+            <Button size="sm" className="gap-1.5" onClick={() => { setRegDate(format(new Date(), 'yyyy-MM-dd')); setRegDialogOpen(true); }}>
+              <Plus className="h-3.5 w-3.5" /> Raise Request
+            </Button>
+          </div>
+
+          {regRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+              <FileText className="h-8 w-8 opacity-30" />
+              <p className="text-sm">No regularization requests yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {regRequests.map(req => (
+                <div key={req.id} className="border border-border rounded-lg px-4 py-3 flex items-start gap-4 bg-white hover:bg-gray-50/50 transition-colors">
+                  <div className="shrink-0 mt-0.5">
+                    {req.status === 'approved' ? <CheckCircle className="h-4 w-4 text-green-500" />
+                      : req.status === 'rejected' ? <XCircle className="h-4 w-4 text-red-500" />
+                      : <AlertCircle className="h-4 w-4 text-amber-500" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold">{format(new Date(req.date), 'dd MMM yyyy')}</span>
+                      <Badge variant="outline" className="text-[10px] py-0">{REG_TYPE_LABELS[req.type]}</Badge>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                        req.status === 'approved' ? 'bg-green-100 text-green-700'
+                        : req.status === 'rejected' ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{req.reason}</p>
+                    {(req.requestedCheckIn || req.requestedCheckOut) && (
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        {req.requestedCheckIn && `In: ${req.requestedCheckIn}`}
+                        {req.requestedCheckIn && req.requestedCheckOut && '  •  '}
+                        {req.requestedCheckOut && `Out: ${req.requestedCheckOut}`}
+                      </p>
+                    )}
+                    {req.reviewedBy && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Reviewed by {req.reviewedBy}{req.reviewNote ? ` — "${req.reviewNote}"` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-[10px] text-muted-foreground">
+                    {format(new Date(req.submittedAt), 'dd MMM, hh:mm a')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Week navigator ── */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b border-border shrink-0">
+      {activeTab === 'summary' && <div className="flex items-center justify-between px-5 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentWeek(w => subWeeks(w, 1))}>
             <ChevronLeft className="h-4 w-4" />
@@ -705,10 +881,10 @@ export default function MyAttendance() {
             Saving...
           </span>
         )}
-      </div>
+      </div>}
 
       {/* ── Shift bar + Check In/Out button ── */}
-      <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-50 border-b border-border shrink-0">
+      {activeTab === 'summary' && <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-50 border-b border-border shrink-0">
         <span className="text-xs font-semibold text-gray-600 bg-white border border-gray-200 px-2.5 py-1 rounded-md shrink-0">
           General [ 10:00 AM – 7:00 PM ]
         </span>
@@ -744,10 +920,10 @@ export default function MyAttendance() {
             </>
           )}
         </button>
-      </div>
+      </div>}
 
       {/* ── Day rows ── */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      {activeTab === 'summary' && <div className="flex-1 overflow-y-auto min-h-0">
         {weekDays.map(day => {
           const ds        = format(day, 'yyyy-MM-dd');
           const rec       = weekRecords[ds] ?? null;
@@ -873,19 +1049,26 @@ export default function MyAttendance() {
                     </>
                   );
                 })()}
-                {!isWknd && (
-                  <span className="text-[9px] text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors">
-                    click for details
-                  </span>
+                {!isWknd && !isHoliday && !isLeave && !isToday(day) && ds < today && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setRegDate(ds);
+                      setRegDialogOpen(true);
+                    }}
+                    className="text-[9px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity hover:text-blue-700 hover:underline mt-0.5"
+                  >
+                    Regularize
+                  </button>
                 )}
               </div>
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* ── Timeline hour labels ── */}
-      <div className="flex items-stretch border-t border-border bg-gray-50/50 shrink-0">
+      {activeTab === 'summary' && <div className="flex items-stretch border-t border-border bg-gray-50/50 shrink-0">
         <div className="w-16 shrink-0" />
         <div className="w-28 shrink-0" />
         <div className="flex-1 relative h-6 px-2">
@@ -900,10 +1083,10 @@ export default function MyAttendance() {
         </div>
         <div className="w-28 shrink-0" />
         <div className="w-28 shrink-0" />
-      </div>
+      </div>}
 
       {/* ── Bottom stats bar ── */}
-      <div className="flex items-center gap-0 border-t border-border bg-white px-4 py-2.5 overflow-x-auto shrink-0">
+      {activeTab === 'summary' && <div className="flex items-center gap-0 border-t border-border bg-white px-4 py-2.5 overflow-x-auto shrink-0">
         <div className="flex items-center gap-1.5 mr-5 shrink-0">
           <button className="text-xs font-bold text-primary border-b-2 border-primary pb-0.5">Days</button>
           <span className="text-muted-foreground/40 text-xs">|</span>
@@ -948,7 +1131,7 @@ export default function MyAttendance() {
             General [10:00 AM...]
           </span>
         </div>
-      </div>
+      </div>}
 
       {/* ── Day detail side panel ── */}
       {selectedDay && (
@@ -968,6 +1151,62 @@ export default function MyAttendance() {
           onCancel={() => setCameraAction(null)}
         />
       )}
+
+      {/* ── Raise Regularization Request dialog ── */}
+      <Dialog open={regDialogOpen} onOpenChange={setRegDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Raise Regularization Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={regDate}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={e => setRegDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={regType} onValueChange={v => setRegType(v as RegType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(REG_TYPE_LABELS) as [RegType, string][]).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Requested Check-in</Label>
+                <Input type="time" value={regCheckIn} onChange={e => setRegCheckIn(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Requested Check-out</Label>
+                <Input type="time" value={regCheckOut} onChange={e => setRegCheckOut(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason <span className="text-red-500">*</span></Label>
+              <Textarea
+                placeholder="Explain why regularization is needed..."
+                value={regReason}
+                onChange={e => setRegReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleRegSubmit} disabled={regSubmitting || !regReason.trim()}>
+              {regSubmitting ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

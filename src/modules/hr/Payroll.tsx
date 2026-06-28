@@ -314,7 +314,19 @@ export default function PayrollPreparation() {
             const currentMonthKey = getMonthKey(selectedMonth);
 
             const rows = employees.map((emp) => {
-              const empAttendance = monthAttendance.filter((r) => r.employeeId === emp.id);
+              // Match both admin-marked records (employeeId = Firebase key = emp.id)
+              // and portal self-check-ins (employeeId = EMP code = emp.employeeId)
+              const allEmpAttendance = monthAttendance.filter(
+                (r) => r.employeeId === emp.id || r.employeeId === emp.employeeId,
+              );
+              // Deduplicate by date — portal + admin records may both exist for same day
+              const seenDates = new Set<string>();
+              const empAttendance = allEmpAttendance.filter((r) => {
+                if (!r.date) return true;
+                if (seenDates.has(r.date)) return false;
+                seenDates.add(r.date);
+                return true;
+              });
 
               let present = 0;
               let half = 0;
